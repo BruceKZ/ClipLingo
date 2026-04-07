@@ -1,6 +1,13 @@
+mod models;
 mod services;
+mod storage;
 
-use services::clipboard::{read_clipboard_text, read_clipboard_text_with_limits, ClipboardLimits};
+use models::config::{AppConfigRecord, ProviderConfigRecord};
+use services::{
+    clipboard::{read_clipboard_text, read_clipboard_text_with_limits, ClipboardLimits},
+    config::{ConfigService, ProviderSecretStatus},
+};
+use storage::{fs_paths::ProjectPathProvider, secure_storage::KeyringSecretStore};
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -17,6 +24,10 @@ const TRAY_SHOW_SETTINGS_ID: &str = "tray-show-settings";
 
 fn app_url() -> WebviewUrl {
     WebviewUrl::App("index.html".into())
+}
+
+fn config_service() -> ConfigService<ProjectPathProvider, KeyringSecretStore> {
+    ConfigService::new(ProjectPathProvider, KeyringSecretStore)
 }
 
 fn bind_hide_on_close(window: &WebviewWindow) {
@@ -161,6 +172,63 @@ async fn read_system_clipboard(
     }
 }
 
+#[tauri::command]
+async fn load_app_config() -> Result<AppConfigRecord, String> {
+    config_service().load().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn save_app_config(config: AppConfigRecord) -> Result<AppConfigRecord, String> {
+    config_service()
+        .save(config)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn upsert_provider_config(provider: ProviderConfigRecord) -> Result<AppConfigRecord, String> {
+    config_service()
+        .upsert_provider(provider)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn remove_provider_config(provider_id: String) -> Result<AppConfigRecord, String> {
+    config_service()
+        .remove_provider(&provider_id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn set_active_provider(provider_id: Option<String>) -> Result<AppConfigRecord, String> {
+    config_service()
+        .set_active_provider(provider_id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn set_provider_api_key(
+    provider_id: String,
+    api_key: String,
+) -> Result<ProviderSecretStatus, String> {
+    config_service()
+        .set_provider_secret(&provider_id, &api_key)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn get_provider_api_key_status(provider_id: String) -> Result<ProviderSecretStatus, String> {
+    config_service()
+        .get_provider_secret_status(&provider_id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn delete_provider_api_key(provider_id: String) -> Result<ProviderSecretStatus, String> {
+    config_service()
+        .delete_provider_secret(&provider_id)
+        .map_err(|error| error.to_string())
+}
+
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let show_main = MenuItem::with_id(
         app,
@@ -221,7 +289,15 @@ pub fn run() {
             show_translation_popup,
             hide_window,
             toggle_main_window,
-            read_system_clipboard
+            read_system_clipboard,
+            load_app_config,
+            save_app_config,
+            upsert_provider_config,
+            remove_provider_config,
+            set_active_provider,
+            set_provider_api_key,
+            get_provider_api_key_status,
+            delete_provider_api_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
