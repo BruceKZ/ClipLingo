@@ -21,6 +21,13 @@ pub struct LanguageRoutingResult {
     pub fallback_used: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageAnalysis {
+    pub detection: LanguageDetectionResult,
+    pub routing: LanguageRoutingResult,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LanguageDetectionService;
 
@@ -165,10 +172,10 @@ impl LanguageRouter {
         rule: &LanguageRoutingRuleRecord,
         detector: &LanguageDetectionService,
         text: &str,
-    ) -> (LanguageDetectionResult, LanguageRoutingResult) {
+    ) -> LanguageAnalysis {
         let detection = detector.detect(text);
         let routing = self.resolve(rule, detection.source_language.as_deref());
-        (detection, routing)
+        LanguageAnalysis { detection, routing }
     }
 }
 
