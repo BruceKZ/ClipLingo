@@ -263,10 +263,13 @@ async fn translate_text(input: TranslateTextInput) -> Result<TranslationExecutio
         .map_err(|error| error.to_string())?;
     let orchestrator = TranslationOrchestrator::default();
 
-    orchestrator
-        .execute(resolved_provider, config, input)
+    match orchestrator
+        .execute(resolved_provider, config, input.clone())
         .await
-        .map_err(|error| error.to_string())
+    {
+        Ok(output) => Ok(output),
+        Err(error) => Ok(TranslationExecutionOutput::from_safe_error(&input, &error)),
+    }
 }
 
 #[tauri::command]
