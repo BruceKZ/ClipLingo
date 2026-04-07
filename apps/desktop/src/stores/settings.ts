@@ -26,6 +26,11 @@ import {
   type RoutingKind,
   type ThemeMode,
 } from "@cliplingo/shared-types";
+import {
+  validateHeaderNameInput,
+  validateHeaderValueInput,
+  validateProviderBaseUrl,
+} from "@/utils/security";
 
 export interface ProviderDraft extends Omit<ProviderConfig, "organization"> {
   apiKeyDraft: string;
@@ -151,51 +156,18 @@ function validateLanguageList(value: readonly string[], fieldName: string): Fiel
 }
 
 function validateUrl(value: string): FieldValidation {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return createEmptyField("Base URL is required.");
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    if (!["https:", "http:"].includes(parsed.protocol)) {
-      return createEmptyField("Use http or https for the Base URL.");
-    }
-
-    if (parsed.protocol === "http:" && !["localhost", "127.0.0.1", "::1"].includes(parsed.hostname)) {
-      return createEmptyField("HTTP is only allowed for localhost providers.");
-    }
-  } catch {
-    return createEmptyField("Base URL must be a valid URL.");
-  }
-
-  return createValidField();
+  const message = validateProviderBaseUrl(value);
+  return message ? createEmptyField(message) : createValidField();
 }
 
 function validateHeaderName(value: string): FieldValidation {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return createEmptyField("Header name is required.");
-  }
-
-  if (/[\r\n]/.test(trimmed)) {
-    return createEmptyField("Header name cannot contain line breaks.");
-  }
-
-  return createValidField();
+  const message = validateHeaderNameInput(value);
+  return message ? createEmptyField(message) : createValidField();
 }
 
 function validateHeaderValue(value: string): FieldValidation {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return createEmptyField("Header value is required.");
-  }
-
-  if (/[\r\n]/.test(trimmed)) {
-    return createEmptyField("Header value cannot contain line breaks.");
-  }
-
-  return createValidField();
+  const message = validateHeaderValueInput(value);
+  return message ? createEmptyField(message) : createValidField();
 }
 
 function validateShortcut(value: string): FieldValidation {

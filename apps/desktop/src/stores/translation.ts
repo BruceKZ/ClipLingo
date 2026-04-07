@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { sanitizePlainText } from "@/utils/security";
 import type {
   TranslationCommandOutput,
   TranslationRequestInput,
@@ -18,19 +19,7 @@ interface TranslationErrorState {
 }
 
 function normalizeText(text: string): string {
-  return text
-    .replace(/\r\n?/g, "\n")
-    .split("")
-    .filter((character) => {
-      const code = character.charCodeAt(0);
-      return (
-        character === "\n" ||
-        character === "\t" ||
-        (code >= 0x20 && code !== 0x7f)
-      );
-    })
-    .join("")
-    .trim();
+  return sanitizePlainText(text);
 }
 
 function copyToClipboard(text: string): Promise<void> {

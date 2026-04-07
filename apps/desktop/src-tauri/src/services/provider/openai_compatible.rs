@@ -391,6 +391,22 @@ fn build_endpoint(provider_id: &str, base_url: &str, path: &str) -> Result<Url, 
         ));
     }
 
+    if !parsed_base.username().is_empty() || parsed_base.password().is_some() {
+        return Err(provider_error(
+            provider_id,
+            ProviderErrorCode::InvalidBaseUrl,
+            "base URL must not include embedded credentials",
+        ));
+    }
+
+    if parsed_base.query().is_some() || parsed_base.fragment().is_some() {
+        return Err(provider_error(
+            provider_id,
+            ProviderErrorCode::InvalidBaseUrl,
+            "base URL must not include query strings or fragments",
+        ));
+    }
+
     let normalized_path = if path.trim().is_empty() {
         DEFAULT_CHAT_COMPLETIONS_PATH
     } else {
@@ -674,6 +690,38 @@ mod tests {
         let error = OpenAiCompatibleProvider::try_from_config(config, Some("sk-test".to_string()))
             .expect_err("invalid base url");
 
+        assert_eq!(error.code, ProviderErrorCode::InvalidBaseUrl);
+    }
+
+    #[test]
+    fn try_from_config_rejects_file_protocol_and_embedded_credentials() {
+        let mut file_config = provider_config("file:///tmp/provider".to_string());
+        file_config.custom_headers.clear();
+        let file_error = OpenAiCompatibleProvider::try_from_config(
+            file_config,
+            Some("sk-test".to_string()),
+        )
+        .expect_err("file protocol should be rejected");
+        assert_eq!(file_error.code, ProviderErrorCode::InvalidBaseUrl);
+
+        let mut credential_config =
+            provider_config("https://user:pass@example.com/v1".to_string());
+        credential_config.custom_headers.clear();
+        let credential_error = OpenAiCompatibleProvider::try_from_config(
+            credential_config,
+            Some("sk-test".to_string()),
+        )
+        .expect_err("embedded credentials should be rejected");
+        assert_eq!(credential_error.code, ProviderErrorCode::InvalidBaseUrl);
+    }
+
+    #[test]
+    fn try_from_config_rejects_query_and_fragment_in_base_url() {
+        let mut config =
+            provider_config("https://example.com/v1?debug=true#fragment".to_string());
+        config.custom_headers.clear();
+        let error = OpenAiCompatibleProvider::try_from_config(config, Some("sk-test".to_string()))
+            .expect_err("query string should be rejected");
         assert_eq!(error.code, ProviderErrorCode::InvalidBaseUrl);
     }
 
