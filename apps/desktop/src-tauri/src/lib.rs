@@ -6,6 +6,7 @@ use models::config::{AppConfigRecord, ProviderConfigRecord};
 use services::{
     clipboard::{read_clipboard_text, read_clipboard_text_with_limits, ClipboardLimits},
     config::{ConfigService, ProviderSecretStatus},
+    language::{LanguageAnalysis, LanguageDetectionService, LanguageRouter},
     trigger::{
         dispatch_translation_trigger, initialize_trigger_services, TriggerDispatchPayload,
         TriggerSource,
@@ -234,6 +235,26 @@ async fn delete_provider_api_key(provider_id: String) -> Result<ProviderSecretSt
 }
 
 #[tauri::command]
+async fn analyze_language_routing(
+    text: String,
+    rule: Option<models::config::LanguageRoutingRuleRecord>,
+) -> Result<LanguageAnalysis, String> {
+    let detector = LanguageDetectionService::new();
+    let router = LanguageRouter;
+    let routing_rule = if let Some(rule) = rule {
+        rule
+    } else {
+        config_service()
+            .load()
+            .map_err(|error| error.to_string())?
+            .translation
+            .routing_rule
+    };
+
+    Ok(router.resolve_for_text(&routing_rule, &detector, &text))
+}
+
+#[tauri::command]
 async fn trigger_translation_from_fallback_shortcut(
     app: AppHandle,
 ) -> Result<TriggerDispatchPayload, String> {
@@ -316,6 +337,7 @@ pub fn run() {
             set_provider_api_key,
             get_provider_api_key_status,
             delete_provider_api_key,
+            analyze_language_routing,
             trigger_translation_from_fallback_shortcut
         ])
         .run(tauri::generate_context!())
