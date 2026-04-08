@@ -1,6 +1,6 @@
 [package]
 name = "cliplingo-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "ClipLingo desktop application"
 authors = ["Zhixiang Dai"]
 edition = "2021"

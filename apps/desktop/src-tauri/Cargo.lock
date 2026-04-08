@@ -512,9 +512,10 @@ dependencies = [
 
 [[package]]
 name = "cliplingo-desktop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
+ "chrono",
  "core-foundation 0.10.1",
  "core-graphics 0.25.0",
  "directories",
