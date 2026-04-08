@@ -10,7 +10,7 @@
               </div>
             </div>
 
-            <ProviderOverviewPanel />
+            <AppSettingsWorkspace />
           </div>
         </section>
       </v-container>
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import ProviderOverviewPanel from "@/components/settings/ProviderOverviewPanel.vue";
+import AppSettingsWorkspace from "@/components/settings/AppSettingsWorkspace.vue";
 import { useI18n } from "@/i18n";
 import { useUiStore } from "@/stores/ui";
 
