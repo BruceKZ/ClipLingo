@@ -7,7 +7,7 @@
           {{ t("settings.providersDirectoryHelp") }}
         </p>
       </div>
-      <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="handleAddProvider">
+      <v-btn class="app-btn header-action-btn" color="primary" variant="tonal" prepend-icon="mdi-server-plus-outline" @click="handleAddProvider">
         {{ t("settings.addProvider") }}
       </v-btn>
     </div>
@@ -128,7 +128,7 @@
         <div class="text-body-2 text-medium-emphasis mb-6">
           {{ t("settings.providersDirectoryEmpty") }}
         </div>
-        <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="handleAddProvider">
+        <v-btn class="app-btn header-action-btn" color="primary" variant="tonal" prepend-icon="mdi-server-plus-outline" @click="handleAddProvider">
           {{ t("settings.addProvider") }}
         </v-btn>
       </v-card-text>
@@ -325,6 +325,10 @@ function makeProviderActive(providerId: string) {
 
 .providers-directory :deep(.app-btn .v-icon) {
   font-size: 1rem;
+}
+
+.providers-directory :deep(.header-action-btn) {
+  min-width: 156px;
 }
 
 .providers-directory :deep(.app-btn--compact) {
