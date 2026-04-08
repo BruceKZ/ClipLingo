@@ -1,14 +1,19 @@
 <template>
   <v-app :theme="uiStore.resolvedTheme">
     <v-navigation-drawer
-      v-model="drawer"
       :rail="rail"
       permanent
       border="end"
-      :width="248"
+      :width="180"
       :rail-width="76"
     >
-      <div class="px-4 pt-6 pb-2 text-subtitle-1 text-medium-emphasis">Application</div>
+      <div class="d-flex justify-center px-3 pt-4 pb-3">
+        <div class="nav-brand" :class="{ 'nav-brand--rail': rail }">
+          <img :src="appIcon" alt="ClipLingo" class="nav-brand__image" />
+          <div v-if="!rail" class="nav-brand__label">ClipLingo</div>
+        </div>
+      </div>
+
       <v-list nav density="comfortable" class="pt-0">
         <v-list-item
           v-for="item in navItems"
@@ -22,34 +27,38 @@
           <template #prepend>
             <v-icon :icon="item.icon" />
           </template>
-          <v-list-item-title>{{ item.label }}</v-list-item-title>
+          <v-list-item-title class="nav-label">{{ item.label }}</v-list-item-title>
         </v-list-item>
       </v-list>
 
       <template #append>
-        <div class="pa-3 d-flex flex-column ga-2">
-          <v-btn
-            block
-            variant="tonal"
-            color="primary"
+        <v-list nav density="comfortable" class="pb-3">
+          <v-list-item
+            rounded="lg"
+            class="mx-2 mb-2"
             @click="toggleTheme"
           >
-            Theme: {{ uiStore.resolvedTheme }}
-          </v-btn>
-          <v-btn block variant="text" @click="rail = !rail">
-            {{ rail ? "Expand" : "Collapse" }}
-          </v-btn>
-        </div>
+            <template #prepend>
+              <v-icon :icon="themeIcon" />
+            </template>
+            <v-list-item-title v-if="!rail" class="nav-label">{{ themeLabel }}</v-list-item-title>
+          </v-list-item>
+
+          <v-list-item
+            rounded="lg"
+            class="mx-2"
+            @click="toggleRail"
+          >
+            <template #prepend>
+              <v-icon :icon="rail ? 'mdi-dock-right' : 'mdi-dock-left'" />
+            </template>
+            <v-list-item-title v-if="!rail" class="nav-label">
+              {{ t("nav.toggleSidebar") }}
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
       </template>
     </v-navigation-drawer>
-
-    <v-app-bar color="primary" density="comfortable" flat>
-      <v-btn icon="mdi-menu" variant="text" @click="drawer = !drawer" />
-      <v-avatar size="34" class="mr-3" color="white">
-        <span class="text-primary font-weight-bold">C</span>
-      </v-avatar>
-      <v-toolbar-title class="font-weight-medium">ClipLingo</v-toolbar-title>
-    </v-app-bar>
 
     <v-main class="bg-background">
       <v-container fluid class="pa-4 pa-md-6 fill-height">
@@ -65,6 +74,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { RouterView, useRoute } from "vue-router";
+import appIcon from "@/assets/app-icon.png";
 import { useUiStore } from "@/stores/ui";
 import { useTranslationStore } from "@/stores/translation";
 import { useI18n } from "@/i18n";
@@ -78,7 +88,6 @@ const uiStore = useUiStore();
 const translationStore = useTranslationStore();
 const route = useRoute();
 const { t } = useI18n();
-const drawer = ref(true);
 const rail = ref(false);
 let unlistenTrigger: (() => void) | null = null;
 
@@ -93,10 +102,20 @@ const contentShellClass = computed(() =>
     ? "w-100 h-100 d-flex flex-column"
     : "app-content-shell mx-auto w-100",
 );
+const themeLabel = computed(() =>
+  uiStore.resolvedTheme === "dark" ? t("nav.themeDark") : t("nav.themeLight"),
+);
+const themeIcon = computed(() =>
+  uiStore.resolvedTheme === "dark" ? "mdi-weather-night" : "mdi-white-balance-sunny",
+);
 
 function toggleTheme() {
   const nextTheme = uiStore.resolvedTheme === "dark" ? "light" : "dark";
   uiStore.applyTheme(nextTheme);
+}
+
+function toggleRail() {
+  rail.value = !rail.value;
 }
 
 onMounted(async () => {
@@ -124,5 +143,47 @@ onBeforeUnmount(() => {
 <style scoped>
 .app-content-shell {
   max-width: 920px;
+}
+
+.nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 96px;
+  min-height: 88px;
+  border-radius: 20px;
+}
+
+.nav-brand--rail {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.nav-brand__label {
+  font-size: 0.95rem;
+  line-height: 1.1;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.nav-brand__image {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.nav-brand--rail .nav-brand__image {
+  width: 36px;
+  height: 36px;
 }
 </style>

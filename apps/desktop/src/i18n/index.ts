@@ -5,6 +5,9 @@ type MessageKey =
   | "nav.translate"
   | "nav.settings"
   | "nav.providers"
+  | "nav.themeLight"
+  | "nav.themeDark"
+  | "nav.toggleSidebar"
   | "settings.title"
   | "settings.general"
   | "settings.trigger"
@@ -79,6 +82,9 @@ const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
     "nav.translate": "Translate",
     "nav.settings": "Settings",
     "nav.providers": "Providers",
+    "nav.themeLight": "Theme",
+    "nav.themeDark": "Theme",
+    "nav.toggleSidebar": "Sidebar",
     "settings.title": "Settings",
     "settings.general": "General",
     "settings.trigger": "Trigger",
@@ -152,6 +158,9 @@ const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
     "nav.translate": "翻译",
     "nav.settings": "设置",
     "nav.providers": "服务商",
+    "nav.themeLight": "主题",
+    "nav.themeDark": "主题",
+    "nav.toggleSidebar": "折叠",
     "settings.title": "设置",
     "settings.general": "通用",
     "settings.trigger": "触发器",
