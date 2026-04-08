@@ -59,13 +59,6 @@ impl std::fmt::Display for ConfigServiceError {
 
 impl std::error::Error for ConfigServiceError {}
 
-fn current_timestamp_millis() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0)
-}
-
 fn provider_requires_reverification(
     existing: &ProviderConfigRecord,
     next: &ProviderConfigRecord,
@@ -388,9 +381,10 @@ where
         Ok(ResolvedProviderConfig { provider, api_key })
     }
 
-    pub fn mark_provider_verified(
+    pub fn mark_provider_verified_at(
         &self,
         provider_id: &str,
+        verified_at: u64,
     ) -> Result<AppConfigRecord, ConfigServiceError> {
         eprintln!("[config] mark_provider_verified:start provider_id={provider_id}");
         let mut config = self.load()?;
@@ -400,7 +394,7 @@ where
             .find(|provider| provider.id == provider_id)
             .ok_or_else(|| ConfigServiceError::ProviderNotFound(provider_id.to_string()))?;
 
-        provider.verified_at = Some(current_timestamp_millis());
+        provider.verified_at = Some(verified_at);
 
         let saved = self.save(config)?;
         eprintln!("[config] mark_provider_verified:done provider_id={provider_id}");
@@ -620,7 +614,7 @@ mod tests {
 
         service.upsert_provider(provider).expect("insert provider");
         let verified = service
-            .mark_provider_verified("provider-one")
+            .mark_provider_verified_at("provider-one", 1_744_202_096_000)
             .expect("mark verified");
         assert_eq!(verified.providers[0].verified_at.is_some(), true);
 
@@ -650,7 +644,7 @@ mod tests {
 
         service.upsert_provider(provider).expect("insert provider");
         service
-            .mark_provider_verified("provider-one")
+            .mark_provider_verified_at("provider-one", 1_744_202_096_000)
             .expect("mark verified");
 
         service
@@ -673,7 +667,7 @@ mod tests {
             .set_provider_secret("provider-one", "secret")
             .expect("store secret");
         service
-            .mark_provider_verified("provider-one")
+            .mark_provider_verified_at("provider-one", 1_744_202_096_000)
             .expect("mark verified");
         service
             .set_active_provider(Some("provider-one".to_string()))

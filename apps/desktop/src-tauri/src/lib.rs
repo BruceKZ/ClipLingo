@@ -308,13 +308,16 @@ async fn delete_provider_api_key(provider_id: String) -> Result<ProviderSecretSt
 }
 
 #[tauri::command]
-async fn mark_provider_verified(provider_id: String) -> Result<ProviderDirectoryRecord, String> {
+async fn mark_provider_verified(
+    provider_id: String,
+    verified_at: u64,
+) -> Result<ProviderDirectoryRecord, String> {
     eprintln!(
-        "[tauri] mark_provider_verified:start provider_id={}",
-        provider_id
+        "[tauri] mark_provider_verified:start provider_id={} verified_at={}",
+        provider_id, verified_at
     );
     let directory = config_service()
-        .mark_provider_verified(&provider_id)
+        .mark_provider_verified_at(&provider_id, verified_at)
         .map(|config| config.provider_directory())
         .map_err(|error| error.to_string())?;
     eprintln!(

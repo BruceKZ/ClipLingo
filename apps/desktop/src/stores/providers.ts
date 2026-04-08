@@ -367,9 +367,10 @@ export const useProvidersStore = defineStore("providers", () => {
     }
   }
 
-  async function markProviderVerified(providerId: string) {
+  async function markProviderVerified(providerId: string, verifiedAt: number) {
     const directory = await invokeWithTimeout<ProviderDirectory>("mark_provider_verified", {
       providerId,
+      verifiedAt,
     });
     applyDirectory(directory, { selectedId: providerId, preservedDrafts: preservedDraftMap() });
   }
@@ -525,7 +526,11 @@ export const useProvidersStore = defineStore("providers", () => {
         throw new Error(result.error.message);
       }
 
-      await markProviderVerified(providerId);
+      if (!result.serverTimeMs) {
+        throw new Error("Connectivity check did not return a valid server time.");
+      }
+
+      await markProviderVerified(providerId, result.serverTimeMs);
       testState.value = "success";
       testMessage.value = `Test succeeded in ${result.latencyMs} ms.`;
       setStatus(statusLine, "success", testMessage.value);
