@@ -62,6 +62,10 @@ function setStatus(
   statusLine.value = { tone, message, at: Date.now() };
 }
 
+function createProviderId(): string {
+  return crypto.randomUUID();
+}
+
 function validateProvider(provider: ProviderDraft): string | null {
   if (!provider.id.trim()) {
     return "Provider id is required.";
@@ -271,11 +275,8 @@ export const useProvidersStore = defineStore("providers", () => {
   }
 
   function addProvider() {
-    const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     const defaults = getDefaultProviderDraft();
-    const nextId = providers.some((provider) => provider.id === defaults.id)
-      ? `${defaults.id}-${suffix}`
-      : defaults.id;
+    const nextId = createProviderId();
 
     const nextProvider = createProviderDraft({
       ...defaults,
@@ -287,18 +288,18 @@ export const useProvidersStore = defineStore("providers", () => {
 
     providers.push(nextProvider);
     selectedProviderId.value = nextProvider.id;
+    return nextProvider.id;
   }
 
   function duplicateProvider(providerId: string) {
     const existing = providers.find((provider) => provider.id === providerId);
     if (!existing) {
-      return;
+      return null;
     }
 
-    const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const duplicate = createProviderDraft({
       ...existing,
-      id: `${existing.id || "provider"}-${suffix}`,
+      id: createProviderId(),
       name: `${existing.name || existing.id || "Provider"} Copy`,
       persistedId: null,
     });
@@ -306,6 +307,7 @@ export const useProvidersStore = defineStore("providers", () => {
     providers.push(duplicate);
     selectedProviderId.value = duplicate.id;
     setStatus(statusLine, "success", "Provider duplicated.");
+    return duplicate.id;
   }
 
   async function removeProvider(providerId: string) {
@@ -337,6 +339,10 @@ export const useProvidersStore = defineStore("providers", () => {
     if (providers.some((provider) => provider.id === providerId)) {
       selectedProviderId.value = providerId;
     }
+  }
+
+  function getProvider(providerId: string) {
+    return providers.find((provider) => provider.id === providerId) ?? null;
   }
 
   async function makeProviderActive(providerId: string) {
@@ -525,6 +531,7 @@ export const useProvidersStore = defineStore("providers", () => {
     duplicateProvider,
     removeProvider,
     selectProvider,
+    getProvider,
     makeProviderActive,
     addProviderHeader,
     removeProviderHeader,
