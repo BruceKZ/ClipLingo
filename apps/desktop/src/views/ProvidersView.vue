@@ -12,97 +12,149 @@
       </v-btn>
     </div>
 
-    <div class="directory-list">
-      <v-card
-        v-for="provider in providersStore.providers"
-        :key="provider.id"
-        variant="outlined"
-        rounded="lg"
-        class="provider-directory-card"
-      >
-        <v-card-item>
-          <template #prepend>
-            <div class="provider-badge">
-              {{ provider.name.slice(0, 1).toUpperCase() }}
-            </div>
-          </template>
-          <v-card-title>{{ provider.name || t("settings.unnamedProvider") }}</v-card-title>
-          <v-card-subtitle>{{ provider.baseUrl || provider.model || t("settings.providerCardFallback") }}</v-card-subtitle>
-          <template #append>
-            <div class="d-flex align-center ga-2 flex-wrap justify-end">
-              <v-chip
-                v-if="provider.id === providersStore.activeProviderId"
-                size="small"
-                color="primary"
-                variant="tonal"
-              >
-                {{ t("settings.activeProvider") }}
-              </v-chip>
-              <v-chip size="small" variant="outlined">
-                {{ provider.kind }}
-              </v-chip>
-            </div>
-          </template>
-        </v-card-item>
+    <template v-if="providersStore.providers.length > 0">
+      <div v-if="activeProvider" class="directory-group">
+        <div class="group-header">
+          <h2 class="group-title">{{ t("settings.activeProvider") }}</h2>
+        </div>
+        <div class="directory-list">
+          <v-card
+            :key="activeProvider.id"
+            variant="outlined"
+            rounded="lg"
+            class="provider-directory-card provider-directory-card--active"
+          >
+            <v-card-text class="provider-card-body">
+              <div class="provider-card-main">
+                <div class="provider-badge">
+                  {{ providerInitial(activeProvider) }}
+                </div>
+                <div class="provider-copy">
+                  <div class="provider-topline">
+                    <h3 class="provider-name">{{ activeProvider.name || t("settings.unnamedProvider") }}</h3>
+                    <v-chip size="small" color="primary" variant="tonal">
+                      {{ t("settings.activeProvider") }}
+                    </v-chip>
+                  </div>
+                  <div class="provider-meta">
+                    <div class="meta-pill">
+                      <span class="meta-label">{{ t("settings.model") }}</span>
+                      <span class="meta-value">{{ activeProvider.model || "-" }}</span>
+                    </div>
+                    <div class="meta-pill">
+                      <span class="meta-label">{{ t("settings.providerReadiness") }}</span>
+                      <span class="meta-value">
+                        {{ isProviderConfigured(activeProvider) ? t("settings.providerConfigured") : t("settings.providerNeedsSetup") }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        <v-divider />
+              <div class="provider-actions">
+                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-pencil-outline" @click="openProvider(activeProvider.id)">
+                  {{ t("settings.edit") }}
+                </v-btn>
+                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-content-copy" @click="duplicateProvider(activeProvider.id)">
+                  {{ t("settings.duplicate") }}
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+      </div>
 
-        <v-card-text>
-          <v-row dense>
-            <v-col cols="12" md="6">
-              <div class="meta-label">{{ t("settings.model") }}</div>
-              <div class="meta-value">{{ provider.model || "-" }}</div>
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="meta-label">{{ t("settings.authScheme") }}</div>
-              <div class="meta-value">{{ provider.authScheme }}</div>
-            </v-col>
-          </v-row>
-        </v-card-text>
+      <div v-if="inactiveProviders.length > 0" class="directory-group">
+        <div class="group-header">
+          <h2 class="group-title">{{ t("settings.otherProviders") }}</h2>
+        </div>
+        <div class="directory-list">
+          <v-card
+            v-for="provider in inactiveProviders"
+            :key="provider.id"
+            variant="outlined"
+            rounded="lg"
+            class="provider-directory-card"
+          >
+            <v-card-text class="provider-card-body">
+              <div class="provider-card-main">
+                <div class="provider-badge">
+                  {{ providerInitial(provider) }}
+                </div>
+                <div class="provider-copy">
+                  <div class="provider-topline">
+                    <h3 class="provider-name">{{ provider.name || t("settings.unnamedProvider") }}</h3>
+                  </div>
+                  <div class="provider-meta">
+                    <div class="meta-pill">
+                      <span class="meta-label">{{ t("settings.model") }}</span>
+                      <span class="meta-value">{{ provider.model || "-" }}</span>
+                    </div>
+                    <div class="meta-pill">
+                      <span class="meta-label">{{ t("settings.providerReadiness") }}</span>
+                      <span class="meta-value">
+                        {{ isProviderConfigured(provider) ? t("settings.providerConfigured") : t("settings.providerNeedsSetup") }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        <v-divider />
+              <div class="provider-actions">
+                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-check-circle-outline" @click="makeProviderActive(provider.id)">
+                  {{ t("settings.makeActive") }}
+                </v-btn>
+                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-pencil-outline" @click="openProvider(provider.id)">
+                  {{ t("settings.edit") }}
+                </v-btn>
+                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-content-copy" @click="duplicateProvider(provider.id)">
+                  {{ t("settings.duplicate") }}
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+      </div>
+    </template>
 
-        <v-card-actions class="px-4 py-4">
-          <div class="d-flex ga-2 flex-wrap justify-end w-100">
-            <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-content-copy" @click="duplicateProvider(provider.id)">
-              {{ t("settings.duplicate") }}
-            </v-btn>
-            <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-pencil-outline" @click="openProvider(provider.id)">
-              {{ t("settings.edit") }}
-            </v-btn>
-          </div>
-        </v-card-actions>
-      </v-card>
-
-      <v-card
-        v-if="providersStore.providers.length === 0"
-        variant="outlined"
-        rounded="lg"
-        class="provider-directory-card empty-card"
-      >
-        <v-card-text class="py-12 text-center">
-          <div class="text-body-1 mb-2">{{ t("settings.noProvidersYet") }}</div>
-          <div class="text-body-2 text-medium-emphasis mb-6">
-            {{ t("settings.providersDirectoryEmpty") }}
-          </div>
-          <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="handleAddProvider">
-            {{ t("settings.addProvider") }}
-          </v-btn>
-        </v-card-text>
-      </v-card>
-    </div>
+    <v-card
+      v-else
+      variant="outlined"
+      rounded="lg"
+      class="provider-directory-card empty-card"
+    >
+      <v-card-text class="py-12 text-center">
+        <div class="text-body-1 mb-2">{{ t("settings.noProvidersYet") }}</div>
+        <div class="text-body-2 text-medium-emphasis mb-6">
+          {{ t("settings.providersDirectoryEmpty") }}
+        </div>
+        <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="handleAddProvider">
+          {{ t("settings.addProvider") }}
+        </v-btn>
+      </v-card-text>
+    </v-card>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "@/i18n";
-import { useProvidersStore } from "@/stores/providers";
+import { useProvidersStore, type ProviderDraft } from "@/stores/providers";
 
 const router = useRouter();
 const providersStore = useProvidersStore();
 const { t } = useI18n();
+
+const activeProvider = computed(
+  () =>
+    providersStore.providers.find((provider) => provider.id === providersStore.activeProviderId) ??
+    null,
+);
+
+const inactiveProviders = computed(() =>
+  providersStore.providers.filter((provider) => provider.id !== providersStore.activeProviderId),
+);
 
 onMounted(() => {
   providersStore.refresh(true).catch(() => undefined);
@@ -124,6 +176,31 @@ function duplicateProvider(providerId: string) {
     router.push({ name: "provider-detail", params: { providerId: nextId } }).catch(() => undefined);
   }
 }
+
+function providerInitial(provider: ProviderDraft) {
+  const source = provider.name.trim() || provider.baseUrl.trim() || "P";
+  return source.slice(0, 1).toUpperCase();
+}
+
+function makeProviderActive(providerId: string) {
+  providersStore.makeProviderActive(providerId).catch(() => undefined);
+}
+
+function isProviderConfigured(provider: ProviderDraft) {
+  if (!provider.baseUrl.trim()) {
+    return false;
+  }
+  if (!provider.path.trim()) {
+    return false;
+  }
+  if (!provider.model.trim()) {
+    return false;
+  }
+  if (provider.authScheme === "bearer" && !provider.hasSecret && !provider.apiKeyDraft.trim()) {
+    return false;
+  }
+  return true;
+}
 </script>
 
 <style scoped>
@@ -140,51 +217,120 @@ function duplicateProvider(providerId: string) {
   flex-wrap: wrap;
 }
 
+.directory-group {
+  display: grid;
+  gap: 12px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.group-title {
+  font-size: 0.92rem;
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
 .directory-list {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .provider-directory-card {
   border-color: var(--color-line);
-  cursor: pointer;
-  transition: border-color 0.16s ease, transform 0.16s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
 .provider-directory-card:hover {
   border-color: var(--color-accent);
-  transform: translateY(-1px);
+}
+
+.provider-directory-card--active {
+  background: color-mix(in srgb, var(--color-accent-soft) 20%, var(--color-panel) 80%);
+}
+
+.provider-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+}
+
+.provider-card-main {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
 }
 
 .provider-badge {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--color-accent-soft) 82%, var(--color-panel) 18%);
   color: var(--color-accent);
   font-weight: 700;
 }
 
-.meta-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--color-muted);
-  margin-bottom: 6px;
+.provider-copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
 }
 
-.meta-value {
-  font-size: 0.98rem;
-  line-height: 1.45;
+.provider-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.provider-name {
+  font-size: 1.06rem;
+  line-height: 1.25;
+  font-weight: 600;
   color: var(--color-text);
 }
 
+.provider-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-panel);
+}
+
+.meta-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
 .providers-directory :deep(.app-btn) {
-  min-height: 42px;
-  min-width: 112px;
+  min-height: 40px;
+  min-width: 96px;
   text-transform: none;
   font-weight: 600;
   font-size: 0.92rem;
@@ -197,12 +343,46 @@ function duplicateProvider(providerId: string) {
   font-size: 1rem;
 }
 
+.providers-directory :deep(.app-btn--compact) {
+  min-width: auto;
+  padding-inline: 14px;
+}
+
+.meta-value {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
 .empty-card {
   cursor: default;
 }
 
 .empty-card:hover {
   border-color: var(--color-line);
-  transform: none;
+}
+
+@media (max-width: 959px) {
+  .provider-card-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .provider-actions {
+    justify-content: flex-start;
+  }
 }
 </style>

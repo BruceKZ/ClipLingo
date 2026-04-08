@@ -129,7 +129,11 @@ type MessageKey =
   | "settings.invalidJsonObject"
   | "settings.invalidJsonField"
   | "settings.unnamedProvider"
-  | "settings.providerCardFallback";
+  | "settings.providerCardFallback"
+  | "settings.otherProviders"
+  | "settings.providerReadiness"
+  | "settings.providerConfigured"
+  | "settings.providerNeedsSetup";
 
 const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
   en: {
@@ -261,6 +265,10 @@ const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
     "settings.invalidJsonField": "One or more JSON fields have an invalid type.",
     "settings.unnamedProvider": "Untitled provider",
     "settings.providerCardFallback": "OpenAI-compatible provider",
+    "settings.otherProviders": "Other providers",
+    "settings.providerReadiness": "Status",
+    "settings.providerConfigured": "Configured",
+    "settings.providerNeedsSetup": "Needs setup",
   },
   "zh-CN": {
     "nav.translate": "翻译",
@@ -391,6 +399,10 @@ const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
     "settings.invalidJsonField": "JSON 中存在字段类型错误。",
     "settings.unnamedProvider": "未命名服务商",
     "settings.providerCardFallback": "OpenAI-compatible 服务商",
+    "settings.otherProviders": "其他服务商",
+    "settings.providerReadiness": "状态",
+    "settings.providerConfigured": "已配置",
+    "settings.providerNeedsSetup": "待完善",
   },
 };
 

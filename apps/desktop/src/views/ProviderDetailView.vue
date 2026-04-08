@@ -41,316 +41,306 @@
         <v-divider />
 
         <v-card-text class="editor-content">
-          <div class="editor-mode-bar">
-            <div class="section-copy">
-              <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.editorMode") }}</h2>
-              <p class="text-body-2 text-medium-emphasis">{{ t("settings.editorModeHint") }}</p>
-            </div>
-
-            <v-btn-toggle
-              v-model="editorMode"
-              mandatory
-              divided
+          <div class="category-tabs">
+            <v-tabs
+              v-model="activeTab"
               color="primary"
-              variant="tonal"
+              align-tabs="start"
               density="comfortable"
-              class="mode-toggle"
+              class="provider-tabs"
             >
-              <v-btn class="app-btn" prepend-icon="mdi-form-select" value="form">{{ t("settings.formEditor") }}</v-btn>
-              <v-btn class="app-btn" prepend-icon="mdi-code-json" value="json">{{ t("settings.jsonEditor") }}</v-btn>
-            </v-btn-toggle>
+              <v-tab value="basics">{{ t("settings.providerBasics") }}</v-tab>
+              <v-tab value="connection">{{ t("settings.connectionSettings") }}</v-tab>
+              <v-tab value="advanced">{{ t("settings.advancedSettings") }}</v-tab>
+              <v-tab value="json">{{ t("settings.jsonEditor") }}</v-tab>
+            </v-tabs>
           </div>
 
-          <template v-if="editorMode === 'form'">
-            <div class="editor-section">
-              <div class="section-copy">
-                <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.providerBasics") }}</h2>
-                <p class="text-body-2 text-medium-emphasis">{{ t("settings.providerBasicsHint") }}</p>
-              </div>
-              <v-row dense>
-                <v-col cols="12" md="6">
-                  <div class="field-label">{{ t("settings.displayName") }}</div>
-                  <v-text-field
-                    v-model.trim="provider.name"
-                    class="provider-field"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <div class="field-label">{{ t("settings.providerKind") }}</div>
-                  <v-select
-                    v-model="provider.kind"
-                    class="provider-field"
-                    :items="providerKindOptions"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                    disabled
-                  />
-                </v-col>
-              </v-row>
-            </div>
-
-            <v-divider class="my-6" />
-
-            <div class="editor-section">
-              <div class="section-copy">
-                <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.connectionSettings") }}</h2>
-                <p class="text-body-2 text-medium-emphasis">{{ t("settings.connectionSettingsHint") }}</p>
-              </div>
-              <v-row dense>
-                <v-col cols="12">
-                  <div class="field-label">{{ t("settings.baseUrl") }}</div>
-                  <v-text-field
-                    v-model.trim="provider.baseUrl"
-                    class="provider-field"
-                    :hint="t('settings.baseUrlHint')"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                    placeholder="https://api.example.com"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <div class="field-label">{{ t("settings.requestPath") }}</div>
-                  <v-text-field
-                    v-model.trim="provider.path"
-                    class="provider-field"
-                    :hint="t('settings.requestPathHint')"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                    placeholder="/chat/completions"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <div class="field-label">{{ t("settings.authScheme") }}</div>
-                  <v-select
-                    v-model="provider.authScheme"
-                    class="provider-field"
-                    :items="authSchemeOptions"
-                    item-title="title"
-                    item-value="value"
-                    :hint="t('settings.authSchemeHint')"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                  />
-                </v-col>
-                <v-col cols="12">
-                  <div class="field-label field-label--row">
-                    <div class="d-flex align-center ga-2 flex-wrap">
-                      <span>{{ t("settings.apiKeyDraft") }}</span>
-                      <v-chip
-                        v-if="provider.hasSecret"
-                        size="small"
-                        color="success"
-                        variant="tonal"
-                      >
-                        {{ t("settings.apiKeySaved") }}
-                      </v-chip>
-                    </div>
-                  </div>
-                  <div class="api-key-row">
+          <v-window v-model="activeTab" class="provider-tab-panels" touchless>
+            <v-window-item value="basics">
+              <div class="editor-section">
+                <div class="section-copy">
+                  <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.providerBasics") }}</h2>
+                  <p class="text-body-2 text-medium-emphasis">{{ t("settings.providerBasicsHint") }}</p>
+                </div>
+                <v-row dense>
+                  <v-col cols="12" md="6">
+                    <div class="field-label">{{ t("settings.displayName") }}</div>
                     <v-text-field
-                      v-model.trim="provider.apiKeyDraft"
-                      class="provider-field api-key-field"
-                      :hint="t('settings.apiKeyHint')"
-                      :type="provider.authScheme === 'none' ? 'text' : 'password'"
+                      v-model.trim="provider.name"
+                      class="provider-field"
                       variant="outlined"
                       density="comfortable"
                       hide-details="auto"
-                      :placeholder="provider.hasSecret ? 'sk-••••••••••••' : 'sk-...'"
                     />
-                    <v-btn
-                      v-if="provider.hasSecret || provider.apiKeyDraft"
-                      class="app-btn api-key-clear-btn"
-                      color="error"
-                      variant="tonal"
-                      prepend-icon="mdi-key-remove"
-                      @click="providersStore.clearProviderSecret(provider.id)"
-                    >
-                      {{ t("settings.clear") }}
-                    </v-btn>
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="field-label">{{ t("settings.providerKind") }}</div>
+                    <v-select
+                      v-model="provider.kind"
+                      class="provider-field"
+                      :items="providerKindOptions"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                      disabled
+                    />
+                  </v-col>
+                </v-row>
+              </div>
+
+              <v-divider class="my-6" />
+
+              <div class="editor-section">
+                <div class="section-copy section-copy--row">
+                  <div>
+                    <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.testTranslation") }}</h2>
+                    <p class="text-body-2 text-medium-emphasis">{{ t("settings.requestSettingsHint") }}</p>
                   </div>
-                </v-col>
-              </v-row>
-            </div>
-
-            <v-divider class="my-6" />
-
-            <div class="editor-section">
-              <div class="section-copy">
-                <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.requestSettings") }}</h2>
-                <p class="text-body-2 text-medium-emphasis">{{ t("settings.requestSettingsHint") }}</p>
-              </div>
-              <v-row dense>
-                <v-col cols="12" md="6">
-                  <div class="field-label">{{ t("settings.model") }}</div>
-                  <v-text-field
-                    v-model.trim="provider.model"
-                    class="provider-field"
-                    :hint="t('settings.modelHint')"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                    placeholder="gpt-4o-mini"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <div class="field-label">{{ t("settings.requestTimeout") }}</div>
-                  <v-text-field
-                    v-model.number="provider.timeoutSecs"
-                    class="provider-field"
-                    :hint="t('settings.requestTimeoutHint')"
-                    type="text"
-                    inputmode="numeric"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                  />
-                </v-col>
-              </v-row>
-            </div>
-
-            <v-divider class="my-6" />
-
-            <div class="editor-section">
-              <div class="section-copy">
-                <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.advancedSettings") }}</h2>
-                <p class="text-body-2 text-medium-emphasis">{{ t("settings.advancedSettingsHint") }}</p>
-              </div>
-              <v-row dense>
-                <v-col cols="12" md="4">
-                  <div class="field-label">{{ t("settings.temperature") }}</div>
-                  <v-text-field
-                    v-model.number="provider.temperature"
-                    class="provider-field"
-                    :hint="t('settings.temperatureHint')"
-                    type="text"
-                    inputmode="decimal"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                  />
-                </v-col>
-                <v-col cols="12" md="4">
-                  <div class="field-label">{{ t("settings.topP") }}</div>
-                  <v-text-field
-                    v-model.number="provider.topP"
-                    class="provider-field"
-                    :hint="t('settings.topPHint')"
-                    type="text"
-                    inputmode="decimal"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                  />
-                </v-col>
-                <v-col cols="12" md="4">
-                  <div class="field-label">{{ t("settings.maxTokens") }}</div>
-                  <v-text-field
-                    v-model.number="provider.maxTokens"
-                    class="provider-field"
-                    :hint="t('settings.maxTokensHint')"
-                    type="text"
-                    inputmode="numeric"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details="auto"
-                  />
-                </v-col>
-              </v-row>
-            </div>
-
-            <v-divider class="my-6" />
-
-            <div class="editor-section">
-              <div class="section-copy section-copy--row">
-                <div>
-                  <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.customHeaders") }}</h2>
-                  <p class="text-body-2 text-medium-emphasis">{{ t("settings.headersHint") }}</p>
+                  <v-btn class="app-btn" color="primary" variant="tonal" prepend-icon="mdi-flask-outline" :loading="providersStore.testState === 'running'" @click="testProvider">
+                    {{ providersStore.testState === "running" ? t("settings.testing") : t("settings.testTranslation") }}
+                  </v-btn>
                 </div>
-                <v-btn class="app-btn" size="small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="providersStore.addProviderHeader(provider.id)">
-                  {{ t("settings.addHeader") }}
-                </v-btn>
               </div>
+            </v-window-item>
 
-              <div v-if="provider.customHeaders.length === 0" class="text-body-2 text-medium-emphasis py-2">
-                {{ t("settings.noHeaders") }}
-              </div>
-
-              <div v-else class="header-list">
-                <div
-                  v-for="(header, headerIndex) in provider.customHeaders"
-                  :key="`${provider.id}-${headerIndex}`"
-                  class="header-row"
-                >
-                  <v-row dense>
-                    <v-col cols="12" md="5">
-                      <div class="field-label">{{ t("settings.headerName") }}</div>
+            <v-window-item value="connection">
+              <div class="editor-section">
+                <div class="section-copy">
+                  <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.connectionSettings") }}</h2>
+                  <p class="text-body-2 text-medium-emphasis">{{ t("settings.connectionSettingsHint") }}</p>
+                </div>
+                <v-row dense>
+                  <v-col cols="12">
+                    <div class="field-label">{{ t("settings.baseUrl") }}</div>
+                    <v-text-field
+                      v-model.trim="provider.baseUrl"
+                      class="provider-field"
+                      :hint="t('settings.baseUrlHint')"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                      placeholder="https://api.example.com"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="field-label">{{ t("settings.requestPath") }}</div>
+                    <v-text-field
+                      v-model.trim="provider.path"
+                      class="provider-field"
+                      :hint="t('settings.requestPathHint')"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                      placeholder="/chat/completions"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="field-label">{{ t("settings.authScheme") }}</div>
+                    <v-select
+                      v-model="provider.authScheme"
+                      class="provider-field"
+                      :items="authSchemeOptions"
+                      item-title="title"
+                      item-value="value"
+                      :hint="t('settings.authSchemeHint')"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <div class="field-label field-label--row">
+                      <div class="d-flex align-center ga-2 flex-wrap">
+                        <span>{{ t("settings.apiKeyDraft") }}</span>
+                        <v-chip
+                          v-if="provider.hasSecret"
+                          size="small"
+                          color="success"
+                          variant="tonal"
+                        >
+                          {{ t("settings.apiKeySaved") }}
+                        </v-chip>
+                      </div>
+                    </div>
+                    <div class="api-key-row">
                       <v-text-field
-                        v-model.trim="header.name"
-                        class="provider-field"
+                        v-model.trim="provider.apiKeyDraft"
+                        class="provider-field api-key-field"
+                        :hint="t('settings.apiKeyHint')"
+                        :type="provider.authScheme === 'none' ? 'text' : 'password'"
                         variant="outlined"
                         density="comfortable"
                         hide-details="auto"
+                        :placeholder="provider.hasSecret ? 'sk-••••••••••••' : 'sk-...'"
                       />
-                    </v-col>
-                    <v-col cols="12" md="5">
-                      <div class="field-label">{{ t("settings.headerValue") }}</div>
-                      <v-text-field
-                        v-model.trim="header.value"
-                        class="provider-field"
-                        variant="outlined"
-                        density="comfortable"
-                        hide-details="auto"
-                      />
-                    </v-col>
-                    <v-col cols="12" md="3">
-                      <v-btn block color="error" variant="tonal" class="header-remove-btn" prepend-icon="mdi-delete-outline" @click="providersStore.removeProviderHeader(provider.id, headerIndex)">
-                        {{ t("settings.remove") }}
+                      <v-btn
+                        v-if="provider.hasSecret || provider.apiKeyDraft"
+                        class="app-btn api-key-clear-btn"
+                        color="error"
+                        variant="tonal"
+                        prepend-icon="mdi-key-remove"
+                        @click="providersStore.clearProviderSecret(provider.id)"
+                      >
+                        {{ t("settings.clear") }}
                       </v-btn>
-                    </v-col>
-                  </v-row>
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="field-label">{{ t("settings.model") }}</div>
+                    <v-text-field
+                      v-model.trim="provider.model"
+                      class="provider-field"
+                      :hint="t('settings.modelHint')"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                      placeholder="gpt-4o-mini"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="field-label">{{ t("settings.requestTimeout") }}</div>
+                    <v-text-field
+                      v-model.number="provider.timeoutSecs"
+                      class="provider-field"
+                      :hint="t('settings.requestTimeoutHint')"
+                      type="text"
+                      inputmode="numeric"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                    />
+                  </v-col>
+                </v-row>
+              </div>
+            </v-window-item>
+
+            <v-window-item value="advanced">
+              <div class="editor-section">
+                <div class="section-copy">
+                  <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.advancedSettings") }}</h2>
+                  <p class="text-body-2 text-medium-emphasis">{{ t("settings.advancedSettingsHint") }}</p>
+                </div>
+                <v-row dense>
+                  <v-col cols="12" md="4">
+                    <div class="field-label">{{ t("settings.temperature") }}</div>
+                    <v-text-field
+                      v-model.number="provider.temperature"
+                      class="provider-field"
+                      :hint="t('settings.temperatureHint')"
+                      type="text"
+                      inputmode="decimal"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <div class="field-label">{{ t("settings.topP") }}</div>
+                    <v-text-field
+                      v-model.number="provider.topP"
+                      class="provider-field"
+                      :hint="t('settings.topPHint')"
+                      type="text"
+                      inputmode="decimal"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <div class="field-label">{{ t("settings.maxTokens") }}</div>
+                    <v-text-field
+                      v-model.number="provider.maxTokens"
+                      class="provider-field"
+                      :hint="t('settings.maxTokensHint')"
+                      type="text"
+                      inputmode="numeric"
+                      variant="outlined"
+                      density="comfortable"
+                      hide-details="auto"
+                    />
+                  </v-col>
+                </v-row>
+              </div>
+
+              <v-divider class="my-6" />
+
+              <div class="editor-section">
+                <div class="section-copy section-copy--row">
+                  <div>
+                    <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.customHeaders") }}</h2>
+                    <p class="text-body-2 text-medium-emphasis">{{ t("settings.headersHint") }}</p>
+                  </div>
+                  <v-btn class="app-btn" size="small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="providersStore.addProviderHeader(provider.id)">
+                    {{ t("settings.addHeader") }}
+                  </v-btn>
+                </div>
+
+                <div v-if="provider.customHeaders.length === 0" class="text-body-2 text-medium-emphasis py-2">
+                  {{ t("settings.noHeaders") }}
+                </div>
+
+                <div v-else class="header-list">
+                  <div
+                    v-for="(header, headerIndex) in provider.customHeaders"
+                    :key="`${provider.id}-${headerIndex}`"
+                    class="header-row"
+                  >
+                    <v-row dense>
+                      <v-col cols="12" md="5">
+                        <div class="field-label">{{ t("settings.headerName") }}</div>
+                        <v-text-field
+                          v-model.trim="header.name"
+                          class="provider-field"
+                          variant="outlined"
+                          density="comfortable"
+                          hide-details="auto"
+                        />
+                      </v-col>
+                      <v-col cols="12" md="5">
+                        <div class="field-label">{{ t("settings.headerValue") }}</div>
+                        <v-text-field
+                          v-model.trim="header.value"
+                          class="provider-field"
+                          variant="outlined"
+                          density="comfortable"
+                          hide-details="auto"
+                        />
+                      </v-col>
+                      <v-col cols="12" md="3">
+                        <v-btn block color="error" variant="tonal" class="header-remove-btn" prepend-icon="mdi-delete-outline" @click="providersStore.removeProviderHeader(provider.id, headerIndex)">
+                          {{ t("settings.remove") }}
+                        </v-btn>
+                      </v-col>
+                    </v-row>
+                  </div>
                 </div>
               </div>
-            </div>
-          </template>
+            </v-window-item>
 
-          <template v-else>
-            <div class="editor-section">
-              <div class="section-copy">
-                <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.providerJsonLabel") }}</h2>
-                <p class="text-body-2 text-medium-emphasis">
-                  {{ t("settings.jsonEditorHelp") }}
-                </p>
+            <v-window-item value="json">
+              <div class="editor-section">
+                <div class="section-copy">
+                  <h2 class="text-subtitle-1 font-weight-medium">{{ t("settings.providerJsonLabel") }}</h2>
+                  <p class="text-body-2 text-medium-emphasis">
+                    {{ t("settings.jsonEditorHelp") }}
+                  </p>
+                </div>
+
+                <JsonCodeEditor
+                  v-model="jsonDraft"
+                />
+
+                <div v-if="jsonError" class="mt-3">
+                  <v-alert type="error" variant="tonal" density="comfortable">
+                    {{ jsonError }}
+                  </v-alert>
+                </div>
               </div>
-
-              <JsonCodeEditor
-                v-model="jsonDraft"
-              />
-
-              <div v-if="jsonError" class="mt-3">
-                <v-alert type="error" variant="tonal" density="comfortable">
-                  {{ jsonError }}
-                </v-alert>
-              </div>
-            </div>
-          </template>
+            </v-window-item>
+          </v-window>
         </v-card-text>
-
-        <v-divider />
-
-        <v-card-actions class="px-6 py-4">
-          <div class="action-grid action-grid--single">
-            <v-btn class="app-btn" block color="primary" variant="tonal" prepend-icon="mdi-flask-outline" :loading="providersStore.testState === 'running'" @click="testProvider">
-              {{ providersStore.testState === "running" ? t("settings.testing") : t("settings.testTranslation") }}
-            </v-btn>
-          </div>
-        </v-card-actions>
 
         <v-divider />
 
@@ -384,7 +374,7 @@ import JsonCodeEditor from "@/components/settings/JsonCodeEditor.vue";
 import { useI18n } from "@/i18n";
 import { useProvidersStore, type ProviderDraft } from "@/stores/providers";
 
-type EditorMode = "form" | "json";
+type ProviderTab = "basics" | "connection" | "advanced" | "json";
 
 interface ProviderJsonDocument {
   id?: string;
@@ -415,7 +405,7 @@ const authSchemeOptions = computed(() => [
   { title: "None", value: "none" },
 ]);
 
-const editorMode = ref<EditorMode>("form");
+const activeTab = ref<ProviderTab>("basics");
 const jsonDraft = ref("");
 const jsonError = ref("");
 const editableProvider = ref<ProviderDraft | null>(null);
@@ -439,8 +429,8 @@ watch(
   { immediate: true },
 );
 
-watch(editorMode, (mode) => {
-  if (mode === "json" && provider.value) {
+watch(activeTab, (tab) => {
+  if (tab === "json" && provider.value) {
     jsonDraft.value = serializeProvider(provider.value);
     jsonError.value = "";
   }
@@ -593,7 +583,7 @@ async function saveProvider() {
 
   const previousId = current.id;
 
-  if (editorMode.value === "json") {
+  if (activeTab.value === "json") {
     try {
       const parsed = JSON.parse(jsonDraft.value) as ProviderJsonDocument;
       applyJsonToProvider(current, parsed);
@@ -723,17 +713,12 @@ const statusText = computed(() => {
   gap: 18px;
 }
 
-.editor-mode-bar {
-  display: grid;
-  gap: 12px;
+.category-tabs {
   margin-bottom: 24px;
 }
 
-.action-grid {
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+.provider-tab-panels {
+  overflow: visible;
 }
 
 .header-actions {
@@ -833,8 +818,12 @@ const statusText = computed(() => {
   white-space: nowrap;
 }
 
-.provider-editor-page :deep(.mode-toggle .v-btn) {
+.provider-editor-page :deep(.provider-tabs .v-tab) {
   min-height: 40px;
+  text-transform: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .provider-editor-page :deep(.app-btn .v-icon) {
