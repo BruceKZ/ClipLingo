@@ -174,6 +174,7 @@ function scheduleAutoTranslate() {
   clearAutoTranslateTimer();
 
   if (!sourceText.value.trim()) {
+    store.clearTranslationState();
     return;
   }
 

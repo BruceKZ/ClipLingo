@@ -118,6 +118,14 @@ export const useTranslationStore = defineStore("translation", () => {
     error.value = null;
   }
 
+  function clearTranslationState() {
+    ++requestSequence.value;
+    loading.value = false;
+    currentResult.value = null;
+    error.value = null;
+    copiedTargetLanguage.value = null;
+  }
+
   function applyError(nextError: unknown) {
     currentResult.value = null;
     loading.value = false;
@@ -128,7 +136,7 @@ export const useTranslationStore = defineStore("translation", () => {
   async function translateCurrent(overrides: TranslateOverrides = {}) {
     const text = normalizeText(sourceText.value);
     if (!text) {
-      applyError(new Error("No source text available"));
+      clearTranslationState();
       return;
     }
 
@@ -285,6 +293,7 @@ export const useTranslationStore = defineStore("translation", () => {
     statusLabel,
     handleTrigger,
     retryTranslation,
+    clearTranslationState,
     copySource,
     copyTarget,
     copyAllTranslations,
