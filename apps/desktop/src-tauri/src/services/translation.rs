@@ -634,6 +634,7 @@ mod tests {
             timeout_secs: 30,
             custom_headers: Vec::new(),
             enabled: true,
+            verified_at: Some(1),
         }
     }
 

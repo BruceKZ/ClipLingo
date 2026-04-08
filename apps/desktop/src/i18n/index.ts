@@ -133,7 +133,10 @@ type MessageKey =
   | "settings.otherProviders"
   | "settings.providerReadiness"
   | "settings.providerConfigured"
-  | "settings.providerNeedsSetup";
+  | "settings.providerNeedsSetup"
+  | "settings.providerValidation"
+  | "settings.providerVerified"
+  | "settings.providerNeedsVerification";
 
 const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
   en: {
@@ -269,6 +272,9 @@ const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
     "settings.providerReadiness": "Status",
     "settings.providerConfigured": "Configured",
     "settings.providerNeedsSetup": "Needs setup",
+    "settings.providerValidation": "Connectivity",
+    "settings.providerVerified": "Reachable",
+    "settings.providerNeedsVerification": "Untested",
   },
   "zh-CN": {
     "nav.translate": "翻译",
@@ -403,6 +409,9 @@ const MESSAGES: Record<AppLocale, Record<MessageKey, string>> = {
     "settings.providerReadiness": "状态",
     "settings.providerConfigured": "已配置",
     "settings.providerNeedsSetup": "待完善",
+    "settings.providerValidation": "连通性",
+    "settings.providerVerified": "已连通",
+    "settings.providerNeedsVerification": "待检测",
   },
 };
 

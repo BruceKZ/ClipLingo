@@ -42,9 +42,9 @@
                       <span class="meta-value">{{ activeProvider.model || "-" }}</span>
                     </div>
                     <div class="meta-pill">
-                      <span class="meta-label">{{ t("settings.providerReadiness") }}</span>
+                      <span class="meta-label">{{ t("settings.providerValidation") }}</span>
                       <span class="meta-value">
-                        {{ isProviderConfigured(activeProvider) ? t("settings.providerConfigured") : t("settings.providerNeedsSetup") }}
+                        {{ activeProvider.verifiedAt ? t("settings.providerVerified") : t("settings.providerNeedsVerification") }}
                       </span>
                     </div>
                   </div>
@@ -91,9 +91,9 @@
                       <span class="meta-value">{{ provider.model || "-" }}</span>
                     </div>
                     <div class="meta-pill">
-                      <span class="meta-label">{{ t("settings.providerReadiness") }}</span>
+                      <span class="meta-label">{{ t("settings.providerValidation") }}</span>
                       <span class="meta-value">
-                        {{ isProviderConfigured(provider) ? t("settings.providerConfigured") : t("settings.providerNeedsSetup") }}
+                        {{ provider.verifiedAt ? t("settings.providerVerified") : t("settings.providerNeedsVerification") }}
                       </span>
                     </div>
                   </div>
@@ -101,7 +101,7 @@
               </div>
 
               <div class="provider-actions">
-                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-check-circle-outline" @click="makeProviderActive(provider.id)">
+                <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-check-circle-outline" :disabled="!provider.verifiedAt" @click="makeProviderActive(provider.id)">
                   {{ t("settings.makeActive") }}
                 </v-btn>
                 <v-btn class="app-btn app-btn--compact" color="primary" variant="tonal" prepend-icon="mdi-pencil-outline" @click="openProvider(provider.id)">
@@ -184,22 +184,6 @@ function providerInitial(provider: ProviderDraft) {
 
 function makeProviderActive(providerId: string) {
   providersStore.makeProviderActive(providerId).catch(() => undefined);
-}
-
-function isProviderConfigured(provider: ProviderDraft) {
-  if (!provider.baseUrl.trim()) {
-    return false;
-  }
-  if (!provider.path.trim()) {
-    return false;
-  }
-  if (!provider.model.trim()) {
-    return false;
-  }
-  if (provider.authScheme === "bearer" && !provider.hasSecret && !provider.apiKeyDraft.trim()) {
-    return false;
-  }
-  return true;
 }
 </script>
 

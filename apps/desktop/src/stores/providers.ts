@@ -44,7 +44,7 @@ function createProviderDraft(
   return {
     ...createDefaultProviderConfig(),
     ...overrides,
-    customHeaders: overrides.customHeaders
+  customHeaders: overrides.customHeaders
       ? overrides.customHeaders.map((header) => ({ ...header }))
       : overrides.customHeaders ?? [],
     apiKeyDraft: overrides.apiKeyDraft ?? "",
@@ -170,6 +170,14 @@ export const useProvidersStore = defineStore("providers", () => {
       null,
   );
 
+  function preservedDraftMap() {
+    return new Map(
+      providers
+        .filter((provider) => provider.apiKeyDraft.trim())
+        .map((provider) => [provider.id, provider.apiKeyDraft.trim()] as const),
+    );
+  }
+
   function applyDirectory(
     directory: ProviderDirectory,
     options: {
@@ -230,6 +238,7 @@ export const useProvidersStore = defineStore("providers", () => {
 
     if (!provider.persistedId) {
       provider.hasSecret = false;
+      provider.verifiedAt = null;
       setStatus(statusLine, "success", "API key cleared.");
       return;
     }
@@ -239,6 +248,7 @@ export const useProvidersStore = defineStore("providers", () => {
     });
     provider.hasSecret = false;
     provider.apiKeyRef = null;
+    provider.verifiedAt = null;
     setStatus(statusLine, "success", "Saved API key cleared.");
   }
 
@@ -265,11 +275,7 @@ export const useProvidersStore = defineStore("providers", () => {
   }
 
   async function reload(selectedId?: string | null) {
-    const preservedDrafts = new Map(
-      providers
-        .filter((provider) => provider.apiKeyDraft.trim())
-        .map((provider) => [provider.id, provider.apiKeyDraft.trim()] as const),
-    );
+    const preservedDrafts = preservedDraftMap();
     const directory = await invokeWithTimeout<ProviderDirectory>("list_providers");
     applyDirectory(directory, { preservedDrafts, selectedId });
   }
@@ -284,6 +290,7 @@ export const useProvidersStore = defineStore("providers", () => {
       name: defaults.name || `Provider ${providers.length + 1}`,
       persistedId: null,
       hasSecret: Boolean(defaults.apiKeyDraft),
+      verifiedAt: null,
     });
 
     providers.push(nextProvider);
@@ -302,6 +309,7 @@ export const useProvidersStore = defineStore("providers", () => {
       id: createProviderId(),
       name: `${existing.name || existing.id || "Provider"} Copy`,
       persistedId: null,
+      verifiedAt: null,
     });
 
     providers.push(duplicate);
@@ -346,11 +354,24 @@ export const useProvidersStore = defineStore("providers", () => {
   }
 
   async function makeProviderActive(providerId: string) {
-    const directory = await invokeWithTimeout<ProviderDirectory>("set_active_provider", {
+    try {
+      const directory = await invokeWithTimeout<ProviderDirectory>("set_active_provider", {
+        providerId,
+      });
+      applyDirectory(directory, { selectedId: providerId, preservedDrafts: preservedDraftMap() });
+      setStatus(statusLine, "success", "Active provider updated.");
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : String(cause);
+      setStatus(statusLine, "error", error.value);
+      throw cause;
+    }
+  }
+
+  async function markProviderVerified(providerId: string) {
+    const directory = await invokeWithTimeout<ProviderDirectory>("mark_provider_verified", {
       providerId,
     });
-    applyDirectory(directory, { selectedId: providerId });
-    setStatus(statusLine, "success", "Active provider updated.");
+    applyDirectory(directory, { selectedId: providerId, preservedDrafts: preservedDraftMap() });
   }
 
   function addProviderHeader(providerId: string) {
@@ -420,6 +441,7 @@ export const useProvidersStore = defineStore("providers", () => {
             value: header.value.trim(),
           })),
           enabled: provider.enabled,
+          verifiedAt: provider.verifiedAt,
         },
       });
 
@@ -503,6 +525,7 @@ export const useProvidersStore = defineStore("providers", () => {
         throw new Error(result.error.message);
       }
 
+      await markProviderVerified(providerId);
       testState.value = "success";
       testMessage.value = `Test succeeded in ${result.latencyMs} ms.`;
       setStatus(statusLine, "success", testMessage.value);
@@ -533,6 +556,7 @@ export const useProvidersStore = defineStore("providers", () => {
     selectProvider,
     getProvider,
     makeProviderActive,
+    markProviderVerified,
     addProviderHeader,
     removeProviderHeader,
     clearProviderSecret,

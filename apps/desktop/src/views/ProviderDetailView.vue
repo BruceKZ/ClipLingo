@@ -28,7 +28,7 @@
               <v-btn class="app-btn app-btn--compact" size="small" color="primary" variant="tonal" prepend-icon="mdi-content-save-outline" :loading="providersStore.persistState === 'saving'" @click="saveProvider">
                 {{ providersStore.persistState === "saving" ? t("settings.saving") : t("settings.save") }}
               </v-btn>
-              <v-btn class="app-btn app-btn--compact" size="small" color="primary" variant="tonal" prepend-icon="mdi-check-circle-outline" @click="providersStore.makeProviderActive(provider.id)">
+              <v-btn class="app-btn app-btn--compact" size="small" color="primary" variant="tonal" prepend-icon="mdi-check-circle-outline" :disabled="!provider.verifiedAt" @click="makeProviderActive">
                 {{ t("settings.makeActive") }}
               </v-btn>
               <v-btn class="app-btn app-btn--compact" size="small" color="error" variant="tonal" prepend-icon="mdi-delete-outline" @click="removeProvider">
@@ -624,6 +624,15 @@ async function removeProvider() {
   await providersStore.removeProvider(current.id);
   editableProvider.value = null;
   await router.push({ name: "providers" });
+}
+
+function makeProviderActive() {
+  const current = provider.value;
+  if (!current) {
+    return;
+  }
+
+  providersStore.makeProviderActive(current.id).catch(() => undefined);
 }
 
 function goBack() {

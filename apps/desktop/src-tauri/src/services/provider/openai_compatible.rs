@@ -611,6 +611,7 @@ mod tests {
                 value: "value".to_string(),
             }],
             enabled: true,
+            verified_at: Some(1),
         }
     }
 
