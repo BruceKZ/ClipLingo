@@ -83,14 +83,6 @@ impl OpenAiCompatibleProvider {
         })
     }
 
-    pub fn endpoint(&self) -> &Url {
-        &self.endpoint
-    }
-
-    pub fn provider_id(&self) -> &str {
-        &self.provider_id
-    }
-
     fn resolve_settings(
         &self,
         request: &ProviderRequest,

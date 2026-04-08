@@ -16,9 +16,9 @@ pub enum ThemeMode {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "kebab-case")]
 pub enum ProviderKind {
     #[default]
+    #[serde(rename = "openai-compatible", alias = "open-ai-compatible")]
     OpenAiCompatible,
 }
 
@@ -144,7 +144,7 @@ pub struct DebugConfigRecord {
 impl Default for DebugConfigRecord {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             log_raw_network_errors: false,
         }
     }

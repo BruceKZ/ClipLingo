@@ -19,7 +19,7 @@ use storage::{fs_paths::ProjectPathProvider, secure_storage::KeyringSecretStore}
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::TrayIconBuilder,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
@@ -51,7 +51,10 @@ fn bind_hide_on_close(window: &WebviewWindow) {
     window.on_window_event(move |event| {
         if let WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
-            let _ = hide_window.hide();
+            // Keep services alive in background; closing behaves like minimizing to tray.
+            if hide_window.hide().is_err() {
+                let _ = hide_window.minimize();
+            }
         }
     });
 }
@@ -331,7 +334,20 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .tooltip("ClipLingo")
         .icon(Image::from_bytes(include_bytes!("../icons/icon.png"))?.to_owned())
         .menu(&menu)
-        .show_menu_on_left_click(true)
+        .show_menu_on_left_click(false)
+        .on_tray_icon_event({
+            let app_handle = app.clone();
+            move |_tray, event| {
+                if let TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                } = event
+                {
+                    let _ = present_main_window(&app_handle);
+                }
+            }
+        })
         .on_menu_event({
             let app_handle = app.clone();
             move |_app, event| match event.id().as_ref() {
@@ -357,12 +373,11 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let config = config_service().load()?;
-            let main_window = if let Some(window) = handle.get_webview_window(MAIN_WINDOW_LABEL) {
-                window
+            if let Some(window) = handle.get_webview_window(MAIN_WINDOW_LABEL) {
+                bind_hide_on_close(&window);
             } else {
-                create_main_window(&handle)?
-            };
-            bind_hide_on_close(&main_window);
+                let _ = create_main_window(&handle)?;
+            }
 
             build_tray(&handle)?;
             initialize_trigger_services(
