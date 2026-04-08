@@ -103,7 +103,7 @@ export const DEFAULT_HISTORY_CONFIG: HistoryConfig = {
 };
 
 export const DEFAULT_DEBUG_CONFIG: DebugConfig = {
-  enabled: false,
+  enabled: true,
   logRawNetworkErrors: false,
 };
 

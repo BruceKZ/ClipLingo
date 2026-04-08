@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from "vue";
 import { defineStore } from "pinia";
+import { invoke } from "@tauri-apps/api/core";
 import {
   createDefaultAppConfig,
   createDefaultProviderConfig,
@@ -31,6 +32,8 @@ import {
   validateHeaderValueInput,
   validateProviderBaseUrl,
 } from "@/utils/security";
+import type { TranslationCommandOutput } from "@/components/translation/types";
+import { getDefaultProviderDraft } from "@/config/providerDefaults";
 
 export interface ProviderDraft extends Omit<ProviderConfig, "organization"> {
   apiKeyDraft: string;
@@ -86,6 +89,26 @@ export interface SettingsSummary {
   doubleCopyWindowMs: number;
   routingKind: RoutingKind;
   hasErrors: boolean;
+}
+
+export interface InitializeSettingsOptions {
+  timeoutMs?: number;
+  force?: boolean;
+}
+
+export type PersistState = "idle" | "saving" | "saved" | "error";
+export type ConnectionTestState = "idle" | "running" | "success" | "error";
+export type StatusTone = "info" | "success" | "warning" | "error";
+
+interface ProviderSecretStatus {
+  providerId: string;
+  hasSecret: boolean;
+}
+
+interface StatusLine {
+  tone: StatusTone;
+  message: string;
+  at: number;
 }
 
 function createProviderDraft(
@@ -354,19 +377,20 @@ function createValidationSnapshot(draft: AppConfig, providers: ProviderDraft[]):
 
 export const useSettingsStore = defineStore("settings", () => {
   const draft = reactive(createInitialDraft());
-  const providers = reactive<ProviderDraft[]>([
-    createProviderDraft({
-      id: "provider-default",
-      name: "OpenAI-compatible",
-      baseUrl: "",
-      model: "",
-      customHeaders: [],
-      apiKeyDraft: "",
-    }),
-  ]);
-  const activeProviderId = ref<string | null>(providers[0]?.id ?? null);
-  const selectedProviderId = ref<string | null>(providers[0]?.id ?? null);
+  const providers = reactive<ProviderDraft[]>([]);
+  const activeProviderId = ref<string | null>(null);
+  const selectedProviderId = ref<string | null>(null);
   const validation = computed(() => createValidationSnapshot(draft, providers));
+  const initialized = ref(false);
+  const initializing = ref(false);
+  const persistState = ref<PersistState>("idle");
+  const persistError = ref<string | null>(null);
+  const testState = ref<ConnectionTestState>("idle");
+  const testMessage = ref<string | null>(null);
+  const providerApiKeyRefMap = reactive<Record<string, string | null>>({});
+  const providerSecretStateMap = reactive<Record<string, boolean>>({});
+  const lastPersistedSignature = ref("");
+  const statusLine = ref<StatusLine | null>(null);
 
   const summary = computed<SettingsSummary>(() => {
     const activeProvider = providers.find((provider) => provider.id === activeProviderId.value);
@@ -380,6 +404,22 @@ export const useSettingsStore = defineStore("settings", () => {
     };
   });
 
+  const localSignature = computed(() =>
+    JSON.stringify({
+      draft,
+      providers: providers.map((provider) => ({
+        ...provider,
+        apiKeyDraft: provider.apiKeyDraft.trim() ? "__provided__" : "",
+      })),
+      activeProviderId: activeProviderId.value,
+    }),
+  );
+
+  const hasUnsavedChanges = computed(
+    () =>
+      initialized.value && localSignature.value !== lastPersistedSignature.value,
+  );
+
   function resetAll() {
     const fresh = createInitialDraft();
     draft.ui = fresh.ui;
@@ -387,20 +427,9 @@ export const useSettingsStore = defineStore("settings", () => {
     draft.translation = fresh.translation;
     draft.history = fresh.history;
     draft.debug = fresh.debug;
-    providers.splice(
-      0,
-      providers.length,
-      createProviderDraft({
-        id: "provider-default",
-        name: "OpenAI-compatible",
-        baseUrl: "",
-        model: "",
-        customHeaders: [],
-        apiKeyDraft: "",
-      }),
-    );
-    activeProviderId.value = providers[0]?.id ?? null;
-    selectedProviderId.value = providers[0]?.id ?? null;
+    providers.splice(0, providers.length);
+    activeProviderId.value = null;
+    selectedProviderId.value = null;
   }
 
   function setRoutingKind(kind: RoutingKind) {
@@ -409,19 +438,40 @@ export const useSettingsStore = defineStore("settings", () => {
 
   function addProvider() {
     const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const envDefaults = getDefaultProviderDraft();
     const nextProvider = createProviderDraft({
-      id: `provider-${suffix}`,
-      name: `Provider ${providers.length + 1}`,
-      baseUrl: "",
-      model: "",
-      customHeaders: [],
-      apiKeyDraft: "",
+      ...envDefaults,
+      id: providers.some((provider) => provider.id === envDefaults.id)
+        ? `${envDefaults.id || "provider"}-${suffix}`
+        : envDefaults.id ?? `provider-${suffix}`,
+      name: envDefaults.name || `Provider ${providers.length + 1}`,
     });
     providers.push(nextProvider);
     selectedProviderId.value = nextProvider.id;
     if (!activeProviderId.value) {
       activeProviderId.value = nextProvider.id;
     }
+  }
+
+  function duplicateProvider(providerId: string) {
+    const existing = providers.find((provider) => provider.id === providerId);
+    if (!existing) {
+      return;
+    }
+
+    const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+    const duplicateId = `${existing.id || "provider"}-${suffix}`;
+    const next = createProviderDraft({
+      ...existing,
+      id: duplicateId,
+      name: `${existing.name || existing.id || "Provider"} Copy`,
+      customHeaders: existing.customHeaders.map((header) => ({ ...header })),
+      apiKeyDraft: existing.apiKeyDraft,
+      organization: existing.organization ?? "",
+    });
+    providers.push(next);
+    selectedProviderId.value = next.id;
+    setStatus("success", `Duplicated provider ${existing.id}.`);
   }
 
   function removeProvider(providerId: string) {
@@ -489,6 +539,280 @@ export const useSettingsStore = defineStore("settings", () => {
     provider.authScheme = authScheme;
   }
 
+  function setStatus(tone: StatusTone, message: string) {
+    statusLine.value = { tone, message, at: Date.now() };
+  }
+
+  async function invokeWithTimeout<T>(
+    command: string,
+    payload?: Record<string, unknown>,
+    timeoutMs = 8_000,
+  ): Promise<T> {
+    let timer: number | null = null;
+    try {
+      return await Promise.race([
+        invoke<T>(command, payload),
+        new Promise<T>((_, reject) => {
+          timer = window.setTimeout(() => {
+            reject(new Error(`Command ${command} timed out after ${timeoutMs} ms`));
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    }
+  }
+
+  function applyConfig(config: AppConfig) {
+    draft.schemaVersion = 1;
+    draft.ui = { ...config.ui };
+    draft.trigger = { ...config.trigger };
+    draft.translation = {
+      ...config.translation,
+      routingRule: { ...config.translation.routingRule },
+    };
+    draft.history = { ...config.history };
+    draft.debug = { ...config.debug };
+
+    providers.splice(
+      0,
+      providers.length,
+      ...config.providers.map((provider) =>
+        createProviderDraft({
+          ...provider,
+          customHeaders: provider.customHeaders.map((header) => ({ ...header })),
+          apiKeyDraft: "",
+          organization: provider.organization ?? "",
+        }),
+      ),
+    );
+
+    for (const key of Object.keys(providerApiKeyRefMap)) {
+      delete providerApiKeyRefMap[key];
+    }
+    for (const key of Object.keys(providerSecretStateMap)) {
+      delete providerSecretStateMap[key];
+    }
+    for (const provider of config.providers) {
+      providerApiKeyRefMap[provider.id] = provider.apiKeyRef ?? null;
+      providerSecretStateMap[provider.id] = false;
+    }
+
+    const resolvedActiveId =
+      config.activeProviderId && providers.some((provider) => provider.id === config.activeProviderId)
+        ? config.activeProviderId
+        : providers[0]?.id ?? null;
+
+    activeProviderId.value = resolvedActiveId;
+    selectedProviderId.value = resolvedActiveId;
+  }
+
+  function toConfigPayload(): AppConfig {
+    return {
+      schemaVersion: 1,
+      ui: { ...draft.ui },
+      trigger: { ...draft.trigger },
+      translation: {
+        ...draft.translation,
+        routingRule: { ...draft.translation.routingRule },
+      },
+      history: { ...draft.history },
+      debug: { ...draft.debug },
+      providers: providers.map((provider) => ({
+        id: provider.id.trim(),
+        name: provider.name.trim(),
+        kind: provider.kind,
+        baseUrl: provider.baseUrl.trim(),
+        path: provider.path.trim(),
+        authScheme: provider.authScheme,
+        apiKeyRef: providerApiKeyRefMap[provider.id] ?? null,
+        organization: provider.organization.trim() || null,
+        model: provider.model.trim(),
+        temperature: provider.temperature,
+        topP: provider.topP,
+        maxTokens: provider.maxTokens,
+        timeoutSecs: provider.timeoutSecs,
+        customHeaders: provider.customHeaders.map((header) => ({
+          name: header.name.trim(),
+          value: header.value.trim(),
+        })),
+        enabled: provider.enabled,
+      })),
+      activeProviderId: activeProviderId.value,
+    };
+  }
+
+  async function initialize(options: InitializeSettingsOptions = {}) {
+    const { timeoutMs = 8_000, force = false } = options;
+    const initializationSignature = localSignature.value;
+
+    if (!force && (initialized.value || initializing.value)) {
+      return;
+    }
+
+    if (force) {
+      initialized.value = false;
+    }
+
+    initializing.value = true;
+    persistError.value = null;
+
+    try {
+      console.info("[settings] initialize:start");
+      const loaded = await invokeWithTimeout<AppConfig>(
+        "load_app_config",
+        undefined,
+        timeoutMs,
+      );
+      if (!force && localSignature.value !== initializationSignature) {
+        initialized.value = true;
+        persistState.value = "idle";
+        setStatus("info", "Skipped loading saved settings because local edits already started.");
+        return;
+      }
+      applyConfig(loaded);
+      await refreshProviderSecretStatuses();
+      lastPersistedSignature.value = localSignature.value;
+      persistState.value = "saved";
+      initialized.value = true;
+      setStatus("success", "Settings loaded.");
+      console.info("[settings] initialize:success", {
+        providers: providers.length,
+        activeProviderId: activeProviderId.value,
+      });
+    } catch (error) {
+      persistState.value = "error";
+      persistError.value = error instanceof Error ? error.message : String(error);
+      initialized.value = true;
+      lastPersistedSignature.value = localSignature.value;
+      setStatus("warning", `Settings load skipped: ${persistError.value}`);
+      console.error("[settings] initialize:failed", error);
+    } finally {
+      initializing.value = false;
+    }
+  }
+
+  async function persist() {
+    persistState.value = "saving";
+    persistError.value = null;
+    console.info("[settings] persist:start", {
+      providerCount: providers.length,
+      activeProviderId: activeProviderId.value,
+    });
+
+    try {
+      const payload = toConfigPayload();
+      const pendingSecrets = providers
+        .filter((provider) => provider.authScheme === "bearer" && provider.apiKeyDraft.trim())
+        .map((provider) => ({
+          providerId: provider.id.trim(),
+          apiKey: provider.apiKeyDraft.trim(),
+        }));
+      const saved = await invokeWithTimeout<AppConfig>("save_app_config", {
+        config: payload,
+      });
+
+      for (const pendingSecret of pendingSecrets) {
+        const secretStatus = await invokeWithTimeout<ProviderSecretStatus>(
+          "set_provider_api_key",
+          {
+            providerId: pendingSecret.providerId,
+            apiKey: pendingSecret.apiKey,
+          },
+        );
+        providerSecretStateMap[pendingSecret.providerId] = secretStatus.hasSecret;
+      }
+
+      applyConfig(saved);
+
+      await refreshProviderSecretStatuses();
+
+      lastPersistedSignature.value = localSignature.value;
+      persistState.value = "saved";
+      setStatus("success", "Settings saved.");
+      console.info("[settings] persist:success");
+    } catch (error) {
+      persistState.value = "error";
+      persistError.value = error instanceof Error ? error.message : String(error);
+      setStatus("error", `Failed to save: ${persistError.value}`);
+      console.error("[settings] persist:failed", error);
+      throw error;
+    }
+  }
+
+  async function testConnection() {
+    testState.value = "running";
+    testMessage.value = null;
+    console.info("[settings] test:start", {
+      activeProviderId: activeProviderId.value ?? selectedProviderId.value,
+    });
+
+    try {
+      await persist();
+      const providerId = activeProviderId.value ?? selectedProviderId.value;
+      const result = await invokeWithTimeout<TranslationCommandOutput>(
+        "translate_text",
+        {
+          input: {
+            text: "hello",
+            providerId: providerId ?? undefined,
+            targetLanguages: ["zh-CN"],
+          },
+        },
+        15_000,
+      );
+
+      if (result.error) {
+        testState.value = "error";
+        testMessage.value = result.error.message;
+        setStatus("error", `Test failed: ${result.error.message}`);
+        console.warn("[settings] test:provider-error", result.error);
+        return false;
+      }
+
+      testState.value = "success";
+      testMessage.value = "Connection test passed. Translation is available.";
+      setStatus("success", "Connection test passed.");
+      console.info("[settings] test:success", {
+        providerId: result.providerId,
+        model: result.model,
+      });
+      return true;
+    } catch (error) {
+      testState.value = "error";
+      testMessage.value = error instanceof Error ? error.message : String(error);
+      setStatus("error", `Test failed: ${testMessage.value}`);
+      console.error("[settings] test:failed", error);
+      return false;
+    }
+  }
+
+  async function refreshProviderSecretStatuses() {
+    for (const provider of providers) {
+      if (provider.authScheme === "none") {
+        providerSecretStateMap[provider.id] = false;
+        continue;
+      }
+      try {
+        const secretStatus = await invokeWithTimeout<ProviderSecretStatus>(
+          "get_provider_api_key_status",
+          {
+            providerId: provider.id,
+          },
+        );
+        providerSecretStateMap[provider.id] = secretStatus.hasSecret;
+      } catch {
+        providerSecretStateMap[provider.id] = false;
+      }
+    }
+  }
+
+  function hasProviderSecret(providerId: string): boolean {
+    return providerSecretStateMap[providerId] === true;
+  }
+
   return {
     draft,
     providers,
@@ -496,9 +820,18 @@ export const useSettingsStore = defineStore("settings", () => {
     selectedProviderId,
     validation,
     summary,
+    initialized,
+    initializing,
+    persistState,
+    persistError,
+    testState,
+    testMessage,
+    hasUnsavedChanges,
+    statusLine,
     resetAll,
     setRoutingKind,
     addProvider,
+    duplicateProvider,
     removeProvider,
     selectProvider,
     makeProviderActive,
@@ -506,6 +839,11 @@ export const useSettingsStore = defineStore("settings", () => {
     removeProviderHeader,
     updateProviderKind,
     updateProviderAuthScheme,
+    initialize,
+    persist,
+    testConnection,
+    hasProviderSecret,
+    refreshProviderSecretStatuses,
     splitList,
     joinList,
   };
