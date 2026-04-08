@@ -1,5 +1,7 @@
 <template>
-  <TranslateWorkspace />
+  <section class="h-100 d-flex flex-column">
+    <TranslateWorkspace />
+  </section>
 </template>
 
 <script setup lang="ts">

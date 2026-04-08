@@ -18,6 +18,11 @@ interface TranslationErrorState {
   retryable: boolean;
 }
 
+interface TranslateOverrides {
+  sourceLanguage?: string;
+  targetLanguages?: string[];
+}
+
 function normalizeText(text: string): string {
   return sanitizePlainText(text);
 }
@@ -120,7 +125,7 @@ export const useTranslationStore = defineStore("translation", () => {
     visible.value = true;
   }
 
-  async function translateCurrent() {
+  async function translateCurrent(overrides: TranslateOverrides = {}) {
     const text = normalizeText(sourceText.value);
     if (!text) {
       applyError(new Error("No source text available"));
@@ -135,6 +140,8 @@ export const useTranslationStore = defineStore("translation", () => {
       const result = await invoke<TranslationCommandOutput>("translate_text", {
         input: {
           text,
+          sourceLanguage: overrides.sourceLanguage,
+          targetLanguages: overrides.targetLanguages,
         } satisfies TranslationRequestInput,
       });
 
@@ -170,8 +177,8 @@ export const useTranslationStore = defineStore("translation", () => {
     await translateCurrent();
   }
 
-  async function retryTranslation() {
-    await translateCurrent();
+  async function retryTranslation(overrides: TranslateOverrides = {}) {
+    await translateCurrent(overrides);
   }
 
   async function copySource() {

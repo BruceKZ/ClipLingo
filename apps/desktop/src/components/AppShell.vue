@@ -52,8 +52,8 @@
     </v-app-bar>
 
     <v-main class="bg-background">
-      <v-container fluid class="pa-4 pa-md-6">
-        <div class="app-content-shell mx-auto w-100">
+      <v-container fluid class="pa-4 pa-md-6 fill-height">
+        <div :class="contentShellClass">
           <RouterView />
         </div>
       </v-container>
@@ -87,6 +87,12 @@ const navItems = computed(() => [
   { label: t("nav.settings"), to: "/settings", icon: "mdi-cog-outline" },
   { label: t("nav.providers"), to: "/providers", icon: "mdi-database-cog-outline" },
 ]);
+
+const contentShellClass = computed(() =>
+  route.path === "/"
+    ? "w-100 h-100 d-flex flex-column"
+    : "app-content-shell mx-auto w-100",
+);
 
 function toggleTheme() {
   const nextTheme = uiStore.resolvedTheme === "dark" ? "light" : "dark";
