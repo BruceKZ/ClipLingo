@@ -1,76 +1,101 @@
 <template>
-  <section class="d-flex h-100 min-h-0 flex-column">
-    <v-card border rounded="md" class="mb-4 shrink-0">
-      <v-card-text class="d-flex flex-column ga-3 md:flex-row md:items-start">
-        <v-select
-          v-model="selectedSourceLanguage"
-          :items="languageOptions"
-          item-title="title"
-          item-value="value"
-          label="输入语言"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          class="w-100 md:max-w-xs"
-        />
-        <v-select
-          v-model="selectedTargetLanguage"
-          :items="targetLanguageOptions"
-          item-title="title"
-          item-value="value"
-          label="目标语言"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          class="w-100 md:max-w-xs"
-        />
-        <div class="d-flex ga-2 shrink-0">
-          <v-btn color="primary" :loading="store.loading" @click="translateNow">
-            翻译
-          </v-btn>
-          <v-btn variant="outlined" :disabled="!hasOutput" @click="copyOutput">
-            复制
-          </v-btn>
+  <section class="flex h-100 min-h-0 flex-col">
+    <div class="shrink-0">
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <div class="min-w-0">
+          <v-select
+            v-model="selectedSourceLanguage"
+            :items="languageOptions"
+            item-title="title"
+            item-value="value"
+            label="输入语言"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          />
         </div>
-      </v-card-text>
-      <v-card-text v-if="store.error" class="pt-0 text-caption text-error">
-        {{ store.error.message }}
-      </v-card-text>
-    </v-card>
 
-    <v-row class="ma-0 flex-1 min-h-0 gx-2 gy-4">
-      <v-col cols="12" md="6" class="pa-0 d-flex min-h-0">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <v-select
+              v-model="selectedTargetLanguage"
+              :items="targetLanguageOptions"
+              item-title="title"
+              item-value="value"
+              label="目标语言"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              class="flex-1"
+            />
+            <v-btn
+              color="primary"
+              :loading="store.loading"
+              icon="mdi-translate"
+              variant="tonal"
+              class="shrink-0"
+              @click="translateNow"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div v-if="store.error" class="mt-3 text-caption text-error">
+        {{ store.error.message }}
+      </div>
+    </div>
+
+    <div class="mt-4 grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-2">
+      <div class="flex min-h-0">
         <v-card
           rounded="md"
           elevation="0"
-          class="d-flex min-h-0 flex-1 flex-column border border-slate-200 bg-white"
+          class="relative flex min-h-0 flex-1 flex-col border border-slate-200 bg-white"
         >
-        <v-card-text class="d-flex min-h-0 flex-1 pa-4">
+        <v-btn
+          icon="mdi-content-copy"
+          variant="text"
+          density="comfortable"
+          size="x-small"
+          :disabled="!sourceText.trim()"
+          class="absolute right-4 top-5 z-10"
+          @click="copySource"
+        />
+        <v-card-text class="flex min-h-0 flex-1 pa-4">
           <textarea
             v-model="sourceText"
-            class="h-full min-h-0 w-full resize-none overflow-y-auto rounded-md border-0 bg-transparent px-4 py-3 text-base leading-7 text-gray-900 outline-none"
+            class="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto rounded-md border-0 bg-transparent px-4 py-3 pr-12 text-base leading-7 text-gray-900 outline-none"
             placeholder="Paste text here, or trigger with Cmd/Ctrl+C+C"
           />
         </v-card-text>
         </v-card>
-      </v-col>
+      </div>
 
-      <v-col cols="12" md="6" class="pa-0 d-flex min-h-0">
+      <div class="flex min-h-0">
         <v-card
           rounded="md"
           elevation="0"
-          class="d-flex min-h-0 flex-1 flex-column border border-slate-200 bg-white"
+          class="relative flex min-h-0 flex-1 flex-col border border-slate-200 bg-white"
         >
-        <v-card-text class="d-flex min-h-0 flex-1 pa-4">
+        <v-btn
+          icon="mdi-content-copy"
+          variant="text"
+          density="comfortable"
+          size="x-small"
+          :disabled="!hasOutput"
+          class="absolute right-4 top-5 z-10"
+          @click="copyOutput"
+        />
+        <v-card-text class="flex min-h-0 flex-1 pa-4">
           <textarea
             :value="outputText"
             readonly
-            class="h-full min-h-0 w-full resize-none overflow-y-auto rounded-md border-0 bg-transparent px-4 py-3 text-base leading-7 text-gray-900 outline-none"
+            class="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto rounded-md border-0 bg-transparent px-4 py-3 pr-12 text-base leading-7 text-gray-900 outline-none"
           />
         </v-card-text>
         </v-card>
-      </v-col>
-    </v-row>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -115,7 +140,6 @@ const sourceText = computed({
 
 const outputText = computed(() => store.translations[0]?.text ?? "");
 const hasOutput = computed(() => outputText.value.trim().length > 0);
-
 async function translateNow() {
   await store.retryTranslation({
     sourceLanguage:
@@ -130,5 +154,9 @@ async function copyOutput() {
   const targetLanguage =
     store.translations[0]?.targetLanguage ?? selectedTargetLanguage.value;
   await store.copyTarget(targetLanguage);
+}
+
+async function copySource() {
+  await store.copySource();
 }
 </script>
