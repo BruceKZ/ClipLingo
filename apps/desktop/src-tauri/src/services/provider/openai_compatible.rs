@@ -52,13 +52,6 @@ impl OpenAiCompatibleProvider {
         let provider_id = normalized_provider_id(&config.id)?;
         let provider_name = normalized_name(&config.name, &provider_id);
         let endpoint = build_endpoint(&provider_id, &config.base_url, &config.path)?;
-        eprintln!(
-            "[provider] openai_compatible:init provider_id={} base_url={} path={} endpoint={}",
-            provider_id,
-            config.base_url,
-            config.path,
-            endpoint
-        );
         let custom_headers = build_custom_headers(&provider_id, &config.custom_headers)?;
         let default_model = normalized_optional_string(&config.model);
         let default_temperature = validate_temperature(&provider_id, config.temperature)?;
@@ -425,11 +418,7 @@ fn build_endpoint(provider_id: &str, base_url: &str, path: &str) -> Result<Url, 
     let combined_path = if base_path.is_empty() || base_path == "/" {
         format!("/{}", request_path.trim_start_matches('/'))
     } else {
-        format!(
-            "{}/{}",
-            base_path,
-            request_path.trim_start_matches('/')
-        )
+        format!("{}/{}", base_path, request_path.trim_start_matches('/'))
     };
 
     endpoint.set_path(&combined_path);
@@ -713,15 +702,12 @@ mod tests {
     fn try_from_config_rejects_file_protocol_and_embedded_credentials() {
         let mut file_config = provider_config("file:///tmp/provider".to_string());
         file_config.custom_headers.clear();
-        let file_error = OpenAiCompatibleProvider::try_from_config(
-            file_config,
-            Some("sk-test".to_string()),
-        )
-        .expect_err("file protocol should be rejected");
+        let file_error =
+            OpenAiCompatibleProvider::try_from_config(file_config, Some("sk-test".to_string()))
+                .expect_err("file protocol should be rejected");
         assert_eq!(file_error.code, ProviderErrorCode::InvalidBaseUrl);
 
-        let mut credential_config =
-            provider_config("https://user:pass@example.com/v1".to_string());
+        let mut credential_config = provider_config("https://user:pass@example.com/v1".to_string());
         credential_config.custom_headers.clear();
         let credential_error = OpenAiCompatibleProvider::try_from_config(
             credential_config,
@@ -733,8 +719,7 @@ mod tests {
 
     #[test]
     fn try_from_config_rejects_query_and_fragment_in_base_url() {
-        let mut config =
-            provider_config("https://example.com/v1?debug=true#fragment".to_string());
+        let mut config = provider_config("https://example.com/v1?debug=true#fragment".to_string());
         config.custom_headers.clear();
         let error = OpenAiCompatibleProvider::try_from_config(config, Some("sk-test".to_string()))
             .expect_err("query string should be rejected");
@@ -743,14 +728,13 @@ mod tests {
 
     #[test]
     fn build_endpoint_preserves_base_url_path_prefix() {
-        let endpoint = build_endpoint(
-            "openai",
-            "https://api.openai.com/v1",
-            "/chat/completions",
-        )
-        .expect("endpoint");
+        let endpoint = build_endpoint("openai", "https://api.openai.com/v1", "/chat/completions")
+            .expect("endpoint");
 
-        assert_eq!(endpoint.as_str(), "https://api.openai.com/v1/chat/completions");
+        assert_eq!(
+            endpoint.as_str(),
+            "https://api.openai.com/v1/chat/completions"
+        );
     }
 
     #[test]

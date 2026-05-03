@@ -64,6 +64,7 @@ export const useTranslationStore = defineStore("translation", () => {
   const currentResult = ref<TranslationCommandOutput | null>(null);
   const error = ref<TranslationErrorState | null>(null);
   const requestSequence = ref(0);
+  const triggerSequence = ref(0);
 
   let copiedSourceTimer: number | null = null;
   let copiedTargetTimer: number | null = null;
@@ -175,14 +176,14 @@ export const useTranslationStore = defineStore("translation", () => {
     }
   }
 
-  async function handleTrigger(payload: TranslationTriggerPayload) {
+  function handleTrigger(payload: TranslationTriggerPayload) {
     resetTransientState();
     requestSource.value = payload.source;
     sourceText.value = normalizeText(payload.text);
     sourceCharacterCount.value = payload.characterCount;
     visible.value = true;
     currentResult.value = null;
-    await translateCurrent();
+    ++triggerSequence.value;
   }
 
   async function retryTranslation(overrides: TranslateOverrides = {}) {
@@ -286,6 +287,7 @@ export const useTranslationStore = defineStore("translation", () => {
     sourceCharacterCount,
     currentResult,
     error,
+    triggerSequence,
     translations,
     hasResult,
     sourceLanguage,

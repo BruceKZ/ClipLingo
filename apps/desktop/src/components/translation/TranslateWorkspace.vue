@@ -34,7 +34,7 @@
               icon="mdi-translate"
               variant="tonal"
               class="shrink-0"
-              @click="translateNow"
+              @click="translateNow(true)"
             />
           </div>
         </div>
@@ -104,7 +104,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useTranslationStore } from "@/stores/translation";
 
 const store = useTranslationStore();
-const AUTO_TRANSLATE_DELAY_MS = 400;
+const AUTO_TRANSLATE_DELAY_MS = 1_000;
 
 interface LanguageOption {
   title: string;
@@ -142,8 +142,36 @@ const sourceText = computed({
 const outputText = computed(() => store.translations[0]?.text ?? "");
 const hasOutput = computed(() => outputText.value.trim().length > 0);
 let autoTranslateTimer: number | null = null;
+let lastSubmittedSignature: string | null = null;
+let autoTranslateInFlight = false;
+let autoTranslateQueued = false;
 
-async function translateNow() {
+function translationSignature() {
+  const text = sourceText.value.replace(/\s+/g, " ").trim();
+  if (!text) {
+    return null;
+  }
+
+  return [
+    text,
+    selectedSourceLanguage.value,
+    selectedTargetLanguage.value,
+  ].join("\u0000");
+}
+
+async function translateNow(force = false) {
+  const signature = translationSignature();
+  if (!signature) {
+    store.clearTranslationState();
+    lastSubmittedSignature = null;
+    return;
+  }
+
+  if (!force && signature === lastSubmittedSignature) {
+    return;
+  }
+
+  lastSubmittedSignature = signature;
   await store.retryTranslation({
     sourceLanguage:
       selectedSourceLanguage.value === "auto"
@@ -151,6 +179,24 @@ async function translateNow() {
         : selectedSourceLanguage.value,
     targetLanguages: [selectedTargetLanguage.value],
   });
+}
+
+async function runAutoTranslate() {
+  if (autoTranslateInFlight) {
+    autoTranslateQueued = true;
+    return;
+  }
+
+  autoTranslateInFlight = true;
+  try {
+    await translateNow();
+  } finally {
+    autoTranslateInFlight = false;
+    if (autoTranslateQueued) {
+      autoTranslateQueued = false;
+      scheduleAutoTranslate();
+    }
+  }
 }
 
 async function copyOutput() {
@@ -175,14 +221,22 @@ function scheduleAutoTranslate() {
 
   if (!sourceText.value.trim()) {
     store.clearTranslationState();
+    lastSubmittedSignature = null;
     return;
   }
 
   autoTranslateTimer = window.setTimeout(() => {
     autoTranslateTimer = null;
-    void translateNow();
+    void runAutoTranslate();
   }, AUTO_TRANSLATE_DELAY_MS);
 }
+
+watch(
+  () => store.triggerSequence,
+  () => {
+    scheduleAutoTranslate();
+  },
+);
 
 watch(sourceText, () => {
   scheduleAutoTranslate();
@@ -194,6 +248,7 @@ watch([selectedSourceLanguage, selectedTargetLanguage], () => {
 
 onBeforeUnmount(() => {
   clearAutoTranslateTimer();
+  autoTranslateQueued = false;
 });
 </script>
 

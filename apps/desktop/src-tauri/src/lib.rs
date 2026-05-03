@@ -197,7 +197,10 @@ async fn list_providers() -> Result<ProviderDirectoryRecord, String> {
         .load()
         .map(|config| config.provider_directory())
         .map_err(|error| error.to_string())?;
-    eprintln!("[tauri] list_providers:done payload={}", to_json(&directory));
+    eprintln!(
+        "[tauri] list_providers:done payload={}",
+        to_json(&directory)
+    );
     Ok(directory)
 }
 
@@ -248,8 +251,13 @@ async fn remove_provider_config(provider_id: String) -> Result<ProviderDirectory
 }
 
 #[tauri::command]
-async fn set_active_provider(provider_id: Option<String>) -> Result<ProviderDirectoryRecord, String> {
-    eprintln!("[tauri] set_active_provider:start provider_id={:?}", provider_id);
+async fn set_active_provider(
+    provider_id: Option<String>,
+) -> Result<ProviderDirectoryRecord, String> {
+    eprintln!(
+        "[tauri] set_active_provider:start provider_id={:?}",
+        provider_id
+    );
     let directory = config_service()
         .set_active_provider(provider_id)
         .map(|config| config.provider_directory())
@@ -274,7 +282,10 @@ async fn set_provider_api_key(
     let status = config_service()
         .set_provider_secret(&provider_id, &api_key)
         .map_err(|error| error.to_string())?;
-    eprintln!("[tauri] set_provider_api_key:done payload={}", to_json(&status));
+    eprintln!(
+        "[tauri] set_provider_api_key:done payload={}",
+        to_json(&status)
+    );
     Ok(status)
 }
 
@@ -352,17 +363,29 @@ async fn analyze_language_routing(
 
 #[tauri::command]
 async fn translate_text(input: TranslateTextInput) -> Result<TranslationExecutionOutput, String> {
-    eprintln!("[tauri] translate_text:start input={}", to_json(&input));
-    let config = config_service().load().map_err(|error| error.to_string())?;
-    let resolved_provider = config_service()
-        .resolve_provider_config(input.provider_id.as_deref())
+    eprintln!(
+        "[tauri] translate_text:start chars={} provider_id={:?} targets={}",
+        input.text.chars().count(),
+        input.provider_id,
+        input
+            .target_languages
+            .as_deref()
+            .map(|targets| targets.join(","))
+            .unwrap_or_else(|| "auto".to_string())
+    );
+    let config_service = config_service();
+    let config = config_service.load().map_err(|error| error.to_string())?;
+    let resolved_provider = config_service
+        .resolve_provider_config_from(&config, input.provider_id.as_deref())
         .map_err(|error| error.to_string())?;
     eprintln!(
-        "[tauri] translate_text:resolved_provider provider_id={} provider_name={} has_secret={}",
+        "[tauri] translate_text:provider provider_id={} provider_name={} has_secret={}",
         resolved_provider.provider.id,
         resolved_provider.provider.name,
         resolved_provider.api_key.is_some()
     );
+    let history_config = config.history.clone();
+    let debug_config = config.debug.clone();
     let orchestrator = TranslationOrchestrator::default();
 
     match orchestrator
@@ -370,11 +393,17 @@ async fn translate_text(input: TranslateTextInput) -> Result<TranslationExecutio
         .await
     {
         Ok(output) => {
-            eprintln!("[tauri] translate_text:success output={}", to_json(&output));
-            let config = config_service().load().map_err(|error| error.to_string())?;
-            let _ = history_repository().append_translation(&config.history, &output);
+            eprintln!(
+                "[tauri] translate_text:success request_id={} provider_id={} model={} targets={} latency_ms={}",
+                output.request_id,
+                output.provider_id,
+                output.model,
+                output.target_languages.join(","),
+                output.latency_ms
+            );
+            let _ = history_repository().append_translation(&history_config, &output);
             let _ = logging_service().log(
-                &config.debug,
+                &debug_config,
                 LogEvent {
                     level: "info",
                     event: "translation-succeeded",
@@ -402,21 +431,15 @@ async fn translate_text(input: TranslateTextInput) -> Result<TranslationExecutio
             } else {
                 eprintln!("[tauri] translate_text:error error={}", error);
             }
-            eprintln!(
-                "[tauri] translate_text:error safe_output={}",
-                to_json(&safe_output)
+            let _ = logging_service().log(
+                &debug_config,
+                LogEvent {
+                    level: "error",
+                    event: "translation-failed",
+                    message: error.to_string(),
+                    text_preview: Some(safe_output.source_text.clone()),
+                },
             );
-            if let Ok(config) = config_service().load() {
-                let _ = logging_service().log(
-                    &config.debug,
-                    LogEvent {
-                        level: "error",
-                        event: "translation-failed",
-                        message: error.to_string(),
-                        text_preview: Some(safe_output.source_text.clone()),
-                    },
-                );
-            }
 
             Ok(safe_output)
         }

@@ -96,28 +96,17 @@ where
 
     pub fn load(&self) -> Result<AppConfigRecord, ConfigServiceError> {
         let path = self.path_provider.config_path()?;
-        eprintln!(
-            "[config] load:start path={} exists={}",
-            path.display(),
-            path.exists()
-        );
-        let loaded = self.load_from_path(&path)?;
-        eprintln!(
-            "[config] load:done active_provider_id={:?} providers={}",
-            loaded.active_provider_id,
-            loaded.providers.len()
-        );
-        Ok(loaded)
+        self.load_from_path(&path)
     }
 
     pub fn save(&self, config: AppConfigRecord) -> Result<AppConfigRecord, ConfigServiceError> {
         let normalized = config.normalize();
         let path = self.path_provider.config_path()?;
         eprintln!(
-            "[config] save:start path={} payload={}",
+            "[config] save:start path={} active_provider_id={:?} providers={}",
             path.display(),
-            serde_json::to_string_pretty(&normalized)
-                .unwrap_or_else(|_| "<serialize failed>".to_string())
+            normalized.active_provider_id,
+            normalized.providers.len()
         );
         self.write_config(&path, &normalized)?;
         eprintln!(
@@ -137,12 +126,7 @@ where
             return Err(ConfigServiceError::InvalidProviderId);
         }
 
-        eprintln!(
-            "[config] upsert_provider:start provider_id={} payload={}",
-            provider_id,
-            serde_json::to_string_pretty(&provider)
-                .unwrap_or_else(|_| "<serialize failed>".to_string())
-        );
+        eprintln!("[config] upsert_provider:start provider_id={provider_id}");
 
         let mut config = self.load()?;
         if let Some(existing) = config
@@ -309,8 +293,7 @@ where
         };
         eprintln!(
             "[config] get_provider_secret_status:done provider_id={} has_secret={}",
-            provider_id,
-            status.has_secret
+            provider_id, status.has_secret
         );
         Ok(status)
     }
@@ -343,15 +326,11 @@ where
         Ok(status)
     }
 
-    pub fn resolve_provider_config(
+    pub fn resolve_provider_config_from(
         &self,
+        config: &AppConfigRecord,
         provider_id: Option<&str>,
     ) -> Result<ResolvedProviderConfig, ConfigServiceError> {
-        eprintln!(
-            "[config] resolve_provider_config:start requested_provider_id={:?}",
-            provider_id
-        );
-        let config = self.load()?;
         let resolved_provider_id = provider_id
             .map(str::trim)
             .filter(|value| !value.is_empty())
@@ -372,12 +351,6 @@ where
             .map(|secret_ref| self.secret_store.get_secret(secret_ref))
             .transpose()?
             .flatten();
-
-        eprintln!(
-            "[config] resolve_provider_config:done resolved_provider_id={} has_secret={}",
-            provider.id,
-            api_key.is_some()
-        );
 
         Ok(ResolvedProviderConfig { provider, api_key })
     }
@@ -525,7 +498,8 @@ mod tests {
         PathBuf,
         InMemorySecretStore,
     ) {
-        let temp_dir = std::env::temp_dir().join(format!("cliplingo-config-test-{}", unique_nonce()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("cliplingo-config-test-{}", unique_nonce()));
         let config_path = temp_dir.join("config.toml");
         let secret_store = InMemorySecretStore::default();
         (
