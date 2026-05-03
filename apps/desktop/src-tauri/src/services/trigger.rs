@@ -20,10 +20,11 @@ use tauri_plugin_global_shortcut::{
 };
 
 use crate::{
-    services::accessibility::macos_accessibility_granted,
     services::clipboard::{read_clipboard_text, ClipboardServiceError, ClipboardText},
     MAIN_WINDOW_LABEL,
 };
+#[cfg(target_os = "macos")]
+use crate::services::accessibility::macos_accessibility_granted;
 
 pub const TRANSLATION_TRIGGER_EVENT: &str = "trigger:translation-requested";
 pub const DEFAULT_FALLBACK_SHORTCUT: &str = "CmdOrCtrl+Shift+Y";
